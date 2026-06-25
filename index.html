@@ -62,7 +62,35 @@
             </section>
 
             <section class="host-console" aria-label="Create interview room">
-              <form class="create-card" id="create-form">
+              <div class="host-access-gate" id="host-access-gate">
+                <div class="card-heading">
+                  <div>
+                    <strong>Host access</strong>
+                    <span>Code required to create rooms</span>
+                  </div>
+                  <small>Locked</small>
+                </div>
+                <p class="host-access-gate__copy">
+                  Enter your host code to unlock the console. Candidates who open an invite link
+                  can join without a code.
+                </p>
+                <label for="host-access-code">Host code</label>
+                <input
+                  id="host-access-code"
+                  type="password"
+                  autocomplete="off"
+                  maxlength="64"
+                  placeholder="Enter host code"
+                />
+                <p class="host-access-gate__error is-hidden" id="host-access-error" role="alert">
+                  Invalid host code. Try again.
+                </p>
+                <button class="primary-button" id="host-access-unlock" type="button">
+                  Unlock host console
+                </button>
+              </div>
+
+              <form class="create-card is-hidden" id="create-form">
                 <div class="card-heading">
                   <div>
                     <strong>Create room</strong>
@@ -513,7 +541,7 @@
             </button>
             <button class="tool-button" id="chat-button" type="button">
               <span>Chat</span>
-              <small id="chat-badge">3</small>
+              <small class="is-hidden" id="chat-badge">0</small>
             </button>
             <button class="tool-button" id="share-button" type="button">
               <span>Share</span>
@@ -910,6 +938,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <script src="./host-config.js"></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

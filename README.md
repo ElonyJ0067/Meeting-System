@@ -31,6 +31,26 @@ This project does not need a build step.
 
 The included `netlify.toml` already sets the publish directory.
 
+## Host access code (optional gate)
+
+By default, **creating a meeting** requires a host code. **Guests with an invite link are not affected.**
+
+1. In Netlify: **Site settings → Environment variables**
+2. Add `HOST_ACCESS_CODE` with your secret (example: `my-company-host-2026`)
+3. Redeploy the site
+
+Optional: set `HOST_ACCESS_ENABLED` to `false` to turn the gate off.
+
+For local testing, edit `host-config.js` or run:
+
+```bash
+node scripts/generate-host-config.js
+```
+
+Default code in the repo is `aster-ridge-host` — change it before sharing publicly.
+
+This is a casual deterrent, not strong security. Technical users can bypass it.
+
 ## Demo Flow
 
 1. Open the deployed site.
