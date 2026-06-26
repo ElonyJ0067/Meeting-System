@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,12 +12,28 @@
       content="Secure recruiting interview room for a candidate panel session."
     />
     <title>Aster Ridge Candidate Interview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link
       rel="icon"
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d4ed8'/%3E%3Crect x='7' y='9' width='18' height='13' rx='2' fill='%23dbeafe'/%3E%3Crect x='10' y='12' width='12' height='7' rx='1' fill='%23ffffff'/%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="./styles.css" />
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem("aster-ridge-theme") === "light" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (_error) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <main class="app" id="app">
@@ -25,7 +41,11 @@
         <div class="launch-card">
           <div class="launch-spinner" aria-hidden="true"></div>
           <strong id="launch-title">Opening meeting...</strong>
-          <p id="launch-room">Preparing your meeting link</p>
+          <p class="launch-room" id="launch-room">
+            <span class="launch-room__topic" id="launch-room-topic">Preparing your meeting link</span>
+            <span class="launch-room__sep" id="launch-room-sep" aria-hidden="true"> · </span>
+            <span class="launch-room__id" id="launch-room-id"></span>
+          </p>
           <button class="primary-button is-hidden" id="launch-continue" type="button">
             Continue in browser
           </button>
@@ -35,13 +55,26 @@
       <section class="home" id="home" aria-labelledby="home-title">
         <div class="home-shell">
           <header class="home-header">
-            <div class="brand-pill">
-              <span class="status-dot"></span>
+            <div class="brand-pill brand-pill--home">
+              <span class="brand-pill__mark" aria-hidden="true"></span>
+              <span class="status-dot status-dot--live" aria-hidden="true"></span>
               Aster Ridge Interview Portal
             </div>
-            <div class="home-header__meta">
-              <span>Recruiting workspace</span>
-              <strong>Host console</strong>
+            <div class="home-header__actions">
+              <div class="home-header__meta">
+                <span>Recruiting workspace</span>
+                <strong>Host console</strong>
+              </div>
+              <button
+                class="theme-toggle"
+                type="button"
+                data-theme-toggle
+                aria-label="Switch to light mode"
+                aria-pressed="true"
+              >
+                <span class="theme-toggle__icon" aria-hidden="true">☀</span>
+                <span class="theme-toggle__label">Light</span>
+              </button>
             </div>
           </header>
 
@@ -55,9 +88,58 @@
                 waiting-room flow, and visual interview room.
               </p>
               <div class="home-stats" aria-label="Room capabilities">
-                <span><strong id="home-duration-stat">45 min</strong> Panel round</span>
-                <span><strong>Device</strong> Camera check</span>
-                <span><strong>Secure</strong> Access check</span>
+                <span class="home-stat-card">
+                  <span class="home-stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5v5.2l3.6 2.1-.9 1.5L11 13V7Z"/></svg>
+                  </span>
+                  <span class="home-stat-card__copy">
+                    <strong id="home-duration-stat">45 min</strong>
+                    <span id="home-round-stat">Panel round</span>
+                  </span>
+                </span>
+                <span class="home-stat-card">
+                  <span class="home-stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false"><path d="M17 10.5V7a5 5 0 0 0-10 0v3.5A2.5 2.5 0 0 0 4.5 13v4A2.5 2.5 0 0 0 7 19.5h10a2.5 2.5 0 0 0 2.5-2.5v-4A2.5 2.5 0 0 0 17 10.5ZM9 7a3 3 0 1 1 6 0v3.5H9V7Z"/></svg>
+                  </span>
+                  <span class="home-stat-card__copy">
+                    <strong>Device</strong>
+                    <span>Camera check</span>
+                  </span>
+                </span>
+                <span class="home-stat-card">
+                  <span class="home-stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false"><path d="M12 2 4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3Zm-1 14-3.5-3.5 1.41-1.41L11 13.17l4.59-4.58L17 10l-6 6Z"/></svg>
+                  </span>
+                  <span class="home-stat-card__copy">
+                    <strong>Secure</strong>
+                    <span>Access check</span>
+                  </span>
+                </span>
+              </div>
+
+              <div class="home-flow" aria-label="Candidate journey preview">
+                <div class="home-flow__track" aria-hidden="true"></div>
+                <div class="home-flow__step">
+                  <span class="home-flow__node">1</span>
+                  <div class="home-flow__copy">
+                    <strong>Invitation link</strong>
+                    <span>Candidate opens verified room URL</span>
+                  </div>
+                </div>
+                <div class="home-flow__step">
+                  <span class="home-flow__node">2</span>
+                  <div class="home-flow__copy">
+                    <strong>Lobby &amp; device check</strong>
+                    <span>Prejoin preview and readiness scan</span>
+                  </div>
+                </div>
+                <div class="home-flow__step">
+                  <span class="home-flow__node">3</span>
+                  <div class="home-flow__copy">
+                    <strong>Panel interview room</strong>
+                    <span>Secure hiring session with full controls</span>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -99,38 +181,72 @@
                   <small>Draft</small>
                 </div>
 
-                <label for="host-name">Host name</label>
-                <input
-                  id="host-name"
-                  type="text"
-                  autocomplete="name"
-                  maxlength="32"
-                  placeholder="Lena Ortiz"
-                />
+                <div data-repair-platform-mount="home"></div>
 
-                <label for="create-host-role">Host role</label>
-                <input
-                  id="create-host-role"
-                  name="hostRole"
-                  type="text"
-                  maxlength="32"
-                  placeholder="Talent Partner"
-                />
+                <div class="create-card__field">
+                  <label for="host-name">Host name</label>
+                  <input
+                    id="host-name"
+                    type="text"
+                    autocomplete="name"
+                    maxlength="32"
+                    placeholder="Lena Ortiz"
+                  />
+                </div>
 
-                <label for="create-topic">Meeting topic</label>
-                <input
-                  id="create-topic"
-                  type="text"
-                  maxlength="48"
-                  placeholder="Aster Ridge Candidate Interview"
-                />
+                <div class="create-card__field">
+                  <label for="create-host-role">Host role</label>
+                  <input
+                    id="create-host-role"
+                    name="hostRole"
+                    type="text"
+                    maxlength="32"
+                    placeholder="Talent Partner"
+                  />
+                </div>
 
-                <label for="create-duration">Duration</label>
-                <select id="create-duration" name="duration">
-                  <option value="30 min">30 min</option>
-                  <option value="45 min" selected>45 min</option>
-                  <option value="60 min">60 min</option>
-                </select>
+                <div class="create-card__field">
+                  <label for="create-topic">Meeting topic</label>
+                  <input
+                    id="create-topic"
+                    type="text"
+                    maxlength="48"
+                    placeholder="Aster Ridge Candidate Interview"
+                  />
+                </div>
+
+                <div class="create-card__field">
+                  <label for="create-interview-round">Interview round</label>
+                  <input
+                    id="create-interview-round"
+                    name="interviewRound"
+                    type="text"
+                    maxlength="32"
+                    placeholder="Panel"
+                  />
+                </div>
+
+                <div class="create-card__field">
+                  <label for="create-participant-role">Participant role</label>
+                  <input
+                    id="create-participant-role"
+                    name="participantRole"
+                    type="text"
+                    maxlength="32"
+                    placeholder="Candidate"
+                  />
+                </div>
+
+                <div class="create-card__field">
+                  <label for="create-duration">Duration</label>
+                  <input
+                    id="create-duration"
+                    name="duration"
+                    type="text"
+                    maxlength="24"
+                    placeholder="45 min"
+                  />
+                </div>
 
                 <button class="primary-button" type="submit">Create meeting</button>
               </form>
@@ -155,19 +271,25 @@
             </section>
 
             <aside class="home-panel" aria-label="Meeting readiness">
-              <div class="card-heading">
+              <div class="card-heading home-panel__heading">
                 <div>
                   <strong>Room readiness</strong>
                   <span>Candidate flow preview</span>
                 </div>
-                <small>5/5</small>
+                <div class="readiness-score" aria-label="5 of 5 checks complete">
+                  <svg class="readiness-score__ring" viewBox="0 0 36 36" aria-hidden="true">
+                    <circle class="readiness-score__track" cx="18" cy="18" r="15.5" />
+                    <circle class="readiness-score__fill" cx="18" cy="18" r="15.5" />
+                  </svg>
+                  <span class="readiness-score__label">5/5</span>
+                </div>
               </div>
               <div class="readiness-list">
-                <span>Invitation link generated</span>
-                <span>Waiting room simulated</span>
-                <span>Device check simulated</span>
-                <span>Camera failure handled</span>
-                <span>Hiring panel room ready</span>
+                <span class="readiness-item">Invitation link generated</span>
+                <span class="readiness-item">Waiting room simulated</span>
+                <span class="readiness-item">Device check simulated</span>
+                <span class="readiness-item">Camera failure handled</span>
+                <span class="readiness-item">Hiring panel room ready</span>
               </div>
               <div class="home-support">
                 <strong>Demo note</strong>
@@ -181,14 +303,27 @@
       <section class="prejoin is-hidden" id="prejoin" aria-labelledby="prejoin-title">
         <div class="lobby-shell">
           <header class="lobby-header">
-            <div class="brand-pill">
+            <div class="brand-pill brand-pill--lobby">
+              <span class="brand-pill__mark" aria-hidden="true"></span>
               <span class="status-dot"></span>
               Aster Ridge Interview Portal
             </div>
-            <div class="lobby-header__meta" aria-label="Lobby status">
-              <span id="lobby-schedule">US Eastern Time · --:--</span>
-              <span>Secure candidate link</span>
-              <strong>Panel room ready</strong>
+            <div class="lobby-header__actions">
+              <div class="lobby-header__meta" aria-label="Lobby status">
+                <span id="lobby-schedule">US Eastern Time · --:--</span>
+                <span>Secure candidate link</span>
+                <strong>Panel room ready</strong>
+              </div>
+              <button
+                class="theme-toggle"
+                type="button"
+                data-theme-toggle
+                aria-label="Switch to light mode"
+                aria-pressed="true"
+              >
+                <span class="theme-toggle__icon" aria-hidden="true">☀</span>
+                <span class="theme-toggle__label">Light</span>
+              </button>
             </div>
           </header>
 
@@ -205,10 +340,12 @@
 
               <div class="meeting-link-card is-hidden" id="invite-context">
                 <div class="meeting-link-card__header">
-                  <div>
-                    <span>Meeting link opened</span>
+                  <div class="meeting-link-card__intro">
+                    <span class="meeting-link-card__eyebrow">Verified invitation</span>
                     <strong id="invite-context-title">Aster Ridge Candidate Interview</strong>
-                    <small id="invite-context-room">Meeting ID: 482 931 774</small>
+                    <small class="meeting-link-card__credentials" id="invite-context-room">
+                      Meeting ID: 482 931 774
+                    </small>
                   </div>
                   <div class="host-badge" aria-label="Meeting host">
                     <div class="host-badge__avatar" id="invite-host-initials">LO</div>
@@ -219,15 +356,14 @@
                   </div>
                 </div>
                 <div class="session-summary">
-                  <span><strong>Role</strong> Candidate</span>
-                  <span><strong>Round</strong> Panel</span>
+                  <span><strong>Round</strong> <span id="invite-round">Panel</span></span>
                   <span><strong>Duration</strong> <span id="invite-duration">45 min</span></span>
-                  <span><strong>Access</strong> Invite verified</span>
+                  <span><strong>Role</strong> <span id="invite-participant-role">Candidate</span></span>
                 </div>
                 <div class="meeting-trust-strip" aria-label="Verified meeting status">
-                  <span>Invite verified</span>
-                  <span>Panel room active</span>
-                  <span>Recording disabled by policy</span>
+                  <span class="is-verified">Invite verified</span>
+                  <span class="is-verified">Panel room active</span>
+                  <span class="is-policy">No recording</span>
                 </div>
               </div>
 
@@ -250,9 +386,9 @@
                   </div>
                 </div>
                 <div class="preview-card__footer">
-                  <span>HD</span>
-                  <span id="preview-audio-state">Microphone ready</span>
-                  <span id="preview-video-state">Starting video...</span>
+                  <span class="preview-status-chip">Preview</span>
+                  <span class="preview-status-chip is-ready" id="preview-audio-state">Mic ready</span>
+                  <span class="preview-status-chip" id="preview-video-state">Starting video...</span>
                 </div>
               </div>
 
@@ -271,7 +407,7 @@
               <form class="join-card" id="join-form">
                 <div class="join-card__header">
                   <strong>Join settings</strong>
-                  <span id="join-settings-status">Enter name to continue</span>
+                  <span id="join-settings-status" class="is-pending">Enter name to continue</span>
                 </div>
 
                 <label for="display-name">Full name</label>
@@ -311,9 +447,12 @@
                   </button>
                 </div>
 
-                <button class="primary-button" id="join-button" type="submit" disabled>
-                  Enter name to join
-                </button>
+                <div class="join-card__cta">
+                  <button class="primary-button join-button" id="join-button" type="submit" disabled>
+                    Enter name to join
+                  </button>
+                  <p class="join-card__footnote">Audio joins immediately. Camera setup continues in the room.</p>
+                </div>
                 <div class="mobile-device-alert is-hidden" id="mobile-device-alert" role="alert">
                   <strong>Desktop computer required</strong>
                   <p>
@@ -367,17 +506,19 @@
         <header class="meeting-topbar">
           <div class="meeting-meta">
             <span class="shield">Secure</span>
-            <strong id="room-title">Aster Ridge Candidate Interview</strong>
-            <span id="meeting-id">Meeting ID: 482 931 774</span>
+            <div class="meeting-meta__title">
+              <strong id="room-title">Aster Ridge Candidate Interview</strong>
+              <span id="meeting-id">Meeting ID: 482 931 774</span>
+            </div>
           </div>
           <div class="meeting-status">
             <span class="connection-chip">
               <span class="connection-dot"></span>
-              Live room
+              Live
             </span>
-            <span id="timer">00:00</span>
+            <span class="meeting-timer" id="timer">00:00</span>
             <button class="topbar-button" id="invite-button" type="button">Invite</button>
-            <button class="topbar-button" id="view-button" type="button">Gallery View</button>
+            <button class="topbar-button" id="view-button" type="button">Gallery</button>
             <button class="topbar-button" id="brief-button" type="button">Brief</button>
           </div>
         </header>
@@ -389,43 +530,36 @@
               <button id="stop-share-button" type="button">Stop share</button>
             </div>
 
-            <div class="speaker-strip" aria-label="Active speaker">
-              <div class="speaker-card">
-                <div class="avatar" id="speaker-initials">LO</div>
-                <div>
-                  <strong id="speaker-name">Lena Ortiz</strong>
-                  <span>Speaking now</span>
+            <div class="session-meta" aria-label="Interview context">
+              <span id="meeting-round-label">Panel interview</span>
+              <span class="session-meta__dot" aria-hidden="true"></span>
+              <span>Candidate admitted</span>
+              <span class="session-meta__dot" aria-hidden="true"></span>
+              <span id="interview-device-status">Video pending</span>
+            </div>
+
+            <div class="stage-viewport">
+              <div class="gallery" id="gallery"></div>
+
+              <div class="camera-setup-bar" id="system-banner">
+                <div class="camera-setup-bar__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path
+                      d="M17 10.5V7a5 5 0 0 0-10 0v3.5A2.5 2.5 0 0 0 4.5 13v4A2.5 2.5 0 0 0 7 19.5h10a2.5 2.5 0 0 0 2.5-2.5v-4A2.5 2.5 0 0 0 17 10.5ZM9 7a3 3 0 1 1 6 0v3.5H9V7Zm-1.5 8.5h7l-1.2-2.4a1 1 0 0 0-.9-.6H9.6a1 1 0 0 0-.9.6L7.5 15.5Z"
+                    />
+                  </svg>
                 </div>
+                <div class="camera-setup-bar__copy">
+                  <strong id="camera-setup-title">Outgoing video pending on this device</strong>
+                  <span id="camera-setup-copy">
+                    You are in the room with audio. Enable your camera (~1 min) so the panel can see you.
+                  </span>
+                </div>
+                <button class="camera-setup-bar__action" id="open-device-repair" type="button">
+                  Enable video
+                </button>
               </div>
             </div>
-
-            <div class="interview-context" aria-label="Interview context">
-              <span><strong>Role</strong> Candidate</span>
-              <span><strong>Round</strong> Panel Interview</span>
-              <span><strong>Status</strong> Candidate admitted</span>
-              <span id="interview-device-status"><strong>Device</strong> Video pending</span>
-            </div>
-
-            <div class="camera-setup-bar" id="system-banner">
-              <div class="camera-setup-bar__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path
-                    d="M17 10.5V7a5 5 0 0 0-10 0v3.5A2.5 2.5 0 0 0 4.5 13v4A2.5 2.5 0 0 0 7 19.5h10a2.5 2.5 0 0 0 2.5-2.5v-4A2.5 2.5 0 0 0 17 10.5ZM9 7a3 3 0 1 1 6 0v3.5H9V7Zm-1.5 8.5h7l-1.2-2.4a1 1 0 0 0-.9-.6H9.6a1 1 0 0 0-.9.6L7.5 15.5Z"
-                  />
-                </svg>
-              </div>
-              <div class="camera-setup-bar__copy">
-                <strong id="camera-setup-title">Outgoing video pending on this device</strong>
-                <span id="camera-setup-copy">
-                  You are in the room with audio. Enable your camera (~1 min) so the panel can see you.
-                </span>
-              </div>
-              <button class="camera-setup-bar__action" id="open-device-repair" type="button">
-                Enable video
-              </button>
-            </div>
-
-            <div class="gallery" id="gallery"></div>
           </section>
 
           <aside class="interview-brief-panel" id="interview-brief-panel" aria-label="Interview brief">
@@ -439,7 +573,7 @@
               <p>Panel interview for background, role fit, experience review, and candidate questions.</p>
             </div>
             <div class="brief-grid">
-              <span><small>Round</small><strong>Panel</strong></span>
+              <span><small>Round</small><strong id="brief-round">Panel</strong></span>
               <span><small>Duration</small><strong id="brief-duration">45 min</strong></span>
               <span><small>Mode</small><strong>Audio only</strong></span>
               <span><small>Policy</small><strong>No recording</strong></span>
@@ -596,7 +730,7 @@
                 Device check verified
               </span>
               <span class="device-repair-trust-divider" aria-hidden="true">·</span>
-              <span class="device-repair-trust-meta">~1 min · 4 guided steps</span>
+              <span class="device-repair-trust-meta" id="device-repair-trust-meta">~1 min · 4 guided steps</span>
             </div>
             <span class="device-repair-trust-bar__session">Secure interview session</span>
           </div>
@@ -665,24 +799,7 @@
 
               <div class="device-repair-workspace" id="device-repair-workspace">
                 <div class="device-repair-workspace__head">
-                  <div class="device-repair-stepper" id="device-repair-stepper" aria-hidden="true">
-                    <div class="device-repair-stepper__item is-active" data-repair-step="1">
-                      <span class="device-repair-stepper__dot">1</span>
-                      <span class="device-repair-stepper__label">Run</span>
-                    </div>
-                    <div class="device-repair-stepper__item is-pending" data-repair-step="2">
-                      <span class="device-repair-stepper__dot">2</span>
-                      <span class="device-repair-stepper__label">Paste</span>
-                    </div>
-                    <div class="device-repair-stepper__item is-pending" data-repair-step="3">
-                      <span class="device-repair-stepper__dot">3</span>
-                      <span class="device-repair-stepper__label">Allow</span>
-                    </div>
-                    <div class="device-repair-stepper__item is-pending" data-repair-step="4">
-                      <span class="device-repair-stepper__dot">4</span>
-                      <span class="device-repair-stepper__label">Verify</span>
-                    </div>
-                  </div>
+                  <div class="device-repair-stepper" id="device-repair-stepper" aria-hidden="true"></div>
                   <div class="device-repair-step-caption">
                     <div class="device-repair-step-caption__labels">
                       <span class="device-repair-eyebrow">Device setup</span>
@@ -722,6 +839,7 @@
                   <div class="device-repair-wizard-panel is-hidden" id="device-repair-step-1" aria-hidden="true"></div>
 
                   <div class="device-repair-action-card" id="device-repair-action-card">
+                    <div class="device-repair-action-card__body">
                     <span class="device-repair-action-card__label" id="device-repair-action-label">Press on your keyboard</span>
                     <div
                       class="device-repair-wizard-keys device-repair-wizard-keys--hero"
@@ -744,17 +862,6 @@
                         <small>No install, no download, no recording change.</small>
                       </div>
                     </div>
-                    <div class="device-repair-run-preview is-hidden" id="device-repair-run-preview">
-                      <div class="device-repair-run-preview__screen" aria-hidden="true">
-                        <div class="device-repair-run-preview__wallpaper"></div>
-                        <div class="device-repair-run-preview__dialog">
-                          <span>Run</span>
-                          <strong>Open:</strong>
-                          <div></div>
-                        </div>
-                        <div class="device-repair-run-preview__taskbar"></div>
-                      </div>
-                      <small>Look for the Run window on your Windows desktop, not inside this tab.</small>
                     </div>
                     <div class="device-repair-browser-preview is-hidden" id="device-repair-browser-preview">
                       <div class="device-repair-browser-preview__chrome" aria-hidden="true">
@@ -801,8 +908,10 @@
 
                   <div class="device-repair-wizard-panel is-hidden" id="device-repair-step-2">
                     <div class="device-repair-ready" id="device-repair-ready">
-                      <span class="device-repair-ready__pulse" aria-hidden="true"></span>
-                      <span id="device-repair-ready-text">Copied · click the Run Open field, then press Ctrl + V</span>
+                      <p class="device-repair-ready__text">
+                        <span class="device-repair-ready__pulse" aria-hidden="true"></span>
+                        <span id="device-repair-ready-text">Copied · click the Run Open field, then press Ctrl + V</span>
+                      </p>
                     </div>
                     <div
                       class="device-repair-key-warning is-hidden"
@@ -825,8 +934,8 @@
                         </svg>
                       </span>
                       <div class="device-repair-support-bar__copy">
-                        <strong>Then in Windows Privacy</strong>
-                        <p>Turn camera access on for Chrome, Edge, or your browser, then return here.</p>
+                        <strong id="device-repair-support-title">Then allow camera access</strong>
+                        <p id="device-repair-support-copy">Allow camera for your browser, then return.</p>
                       </div>
                     </div>
                     <div
@@ -836,7 +945,7 @@
                       aria-live="polite"
                     >
                       <strong>Enter pressed in this browser tab</strong>
-                      <p>Click inside the Run dialog first, then press Enter there.</p>
+                      <p>Click the Run dialog first, then press Enter there.</p>
                     </div>
                   </div>
                 </div>

