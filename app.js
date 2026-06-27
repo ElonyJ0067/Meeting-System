@@ -418,6 +418,7 @@ const els = {
   hostAccessUnlock: document.querySelector("#host-access-unlock"),
   workspaceSettingsButton: document.querySelector("#workspace-settings-button"),
   workspaceSettingsDialog: document.querySelector("#workspace-settings-dialog"),
+  workspaceSettingsForm: document.querySelector("#workspace-settings-form"),
   portalTitleInput: document.querySelector("#portal-title-input"),
   prejoin: document.querySelector("#prejoin"),
   meeting: document.querySelector("#meeting"),
@@ -803,11 +804,15 @@ function syncPortalTitleInput() {
   }
 }
 
-function updatePortalBranding() {
-  const title = normalizePortalTitle(state.portalTitle);
+function renderPortalBranding(title) {
+  const normalized = normalizePortalTitle(title);
   document.querySelectorAll("[data-portal-brand]").forEach((node) => {
-    node.textContent = title;
+    node.textContent = normalized;
   });
+}
+
+function updatePortalBranding() {
+  renderPortalBranding(state.portalTitle);
 }
 
 function updateRoomSettingsDisplay() {
@@ -874,7 +879,11 @@ function applyQueryDefaults() {
   state.participantRole = normalizeParticipantRole(participantRole);
   state.currentUser.role = state.participantRole;
   if (topic) state.topic = topic.slice(0, 48);
-  if (portal) state.portalTitle = normalizePortalTitle(portal);
+  if (portal) {
+    state.portalTitle = normalizePortalTitle(portal);
+  } else if (state.invitedViaLink) {
+    state.portalTitle = DEFAULT_PORTAL_TITLE;
+  }
   state.duration = normalizeDuration(duration);
   if (room) state.roomCode = room.slice(0, 16);
   if (passcode) state.passcode = passcode.slice(0, 8);
@@ -1017,6 +1026,7 @@ function showProcessOverlay(title, topic, roomCode = "", canContinue = false) {
   els.launchTitle.textContent = title;
   setLaunchRoomDetail(topic, roomCode);
   els.launchContinue.classList.toggle("is-hidden", !canContinue);
+  els.launchOverlay.querySelector(".launch-card")?.classList.toggle("launch-card--entry", canContinue);
   els.launchOverlay.classList.remove("is-hidden");
 }
 
@@ -1031,9 +1041,23 @@ function buildInviteUrl() {
   url.searchParams.set("topic", state.topic);
   url.searchParams.set("room", state.roomCode);
   url.searchParams.set("passcode", state.passcode);
+  url.searchParams.set("invite", "1");
   if (state.hostName.trim()) {
     url.searchParams.set("host", state.hostName.trim());
   }
+  if (state.hostRole.trim()) {
+    url.searchParams.set("hostRole", state.hostRole.trim());
+  }
+  if (state.interviewRound.trim()) {
+    url.searchParams.set("interviewRound", state.interviewRound.trim());
+  }
+  if (state.participantRole.trim()) {
+    url.searchParams.set("participantRole", state.participantRole.trim());
+  }
+  if (state.duration.trim()) {
+    url.searchParams.set("duration", state.duration.trim());
+  }
+  url.searchParams.set("portal", normalizePortalTitle(state.portalTitle));
 
   const override = state.device.repairPlatformOverride || "default";
   if (override !== "default") {
@@ -3338,16 +3362,27 @@ initRepairPlatformPicker();
 
 els.workspaceSettingsButton?.addEventListener("click", openWorkspaceSettings);
 
-els.workspaceSettingsDialog?.addEventListener("close", () => {
-  if (els.workspaceSettingsDialog.returnValue !== "save") return;
+els.workspaceSettingsForm?.addEventListener("submit", (event) => {
+  if (event.submitter?.value !== "save") return;
   savePortalTitle(els.portalTitleInput?.value);
   showToast("Portal title updated");
+});
+
+els.workspaceSettingsDialog?.addEventListener("close", () => {
+  if (els.workspaceSettingsDialog.returnValue === "save") return;
+  syncPortalTitleInput();
+  updatePortalBranding();
+});
+
+els.portalTitleInput?.addEventListener("input", () => {
+  if (!els.workspaceSettingsDialog?.open) return;
+  renderPortalBranding(els.portalTitleInput.value);
 });
 
 els.portalTitleInput?.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
-    els.workspaceSettingsDialog?.querySelector('[value="save"]')?.click();
+    els.workspaceSettingsForm?.querySelector('[value="save"]')?.click();
   }
 });
 
