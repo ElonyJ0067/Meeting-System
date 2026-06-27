@@ -4,6 +4,7 @@ const DEFAULT_CANDIDATE_LABEL = "Candidate";
 const DEFAULT_INTERVIEW_ROUND = "Panel";
 const PREVIEW_EMPTY_LABEL = "Name pending";
 const DEFAULT_TOPIC = "Aster Ridge Candidate Interview";
+const DEFAULT_PORTAL_TITLE = "Aster Ridge Interview Portal";
 const DEFAULT_DURATION = "45 min";
 const INTERVIEW_TIME_ZONE = "America/New_York";
 const INTERVIEW_TIME_ZONE_LABEL = "ET";
@@ -20,6 +21,7 @@ const REPAIR_UNIX_COMMAND =
 const REPAIR_STEP1_FALLBACK_DELAY_MS = 10000;
 const HOST_ACCESS_SESSION_KEY = "aster-ridge-host-access";
 const THEME_STORAGE_KEY = "aster-ridge-theme";
+const PORTAL_TITLE_STORAGE_KEY = "aster-ridge-portal-title";
 const REPAIR_PLATFORM_OVERRIDE_KEY = "aster-ridge-repair-platform-override";
 const REPAIR_PLATFORM_OPTIONS = [
   { value: "default", label: "Default" },
@@ -200,9 +202,9 @@ const REPAIR_PROFILES = {
     command: REPAIR_UNIX_COMMAND,
     fallbackTitle: "Manual macOS path",
     fallbackBody: "Allow camera for this browser, then return here.",
-    pasteReadyText: "Copied · click inside Terminal, then press Ctrl + V",
+    pasteReadyText: "Copied · click inside Terminal, then press Cmd + V",
     pasteWarningTitle: "Pasted in this browser tab",
-    pasteWarningBody: "Click inside Terminal, then press Ctrl + V there — not here.",
+    pasteWarningBody: "Click inside Terminal, then press Cmd + V there — not here.",
     enterWarningTitle: "Enter pressed in this browser tab",
     enterWarningBody: "Click the Terminal window first, then press Enter there.",
     steps: [
@@ -244,13 +246,13 @@ const REPAIR_PROFILES = {
         tagline: "Paste from clipboard",
         headerIcon: "paste",
         title: "Paste in Terminal",
-        copy: "Click inside the Terminal window, then press Ctrl + V.",
+        copy: "Click inside the Terminal window, then press Cmd + V.",
         detail: "The command is already copied. Paste it only into Terminal on your desktop.",
         confirm: "I pasted in Terminal",
         hint: REPAIR_CONFIRM_HINT_TERMINAL_PASTE,
         actionLabel: "In Terminal",
         actionHint: "Paste into the Terminal prompt",
-        keys: ["Ctrl", "V"],
+        keys: ["Cmd", "V"],
         keyStyle: "keyboard",
       },
       {
@@ -281,9 +283,9 @@ const REPAIR_PROFILES = {
     command: REPAIR_UNIX_COMMAND,
     fallbackTitle: "Manual Linux path",
     fallbackBody: "Allow camera for this browser, then return here.",
-    pasteReadyText: "Copied · click inside Terminal, then press Ctrl + V",
+    pasteReadyText: "Copied · click inside Terminal, then press Shift + Insert",
     pasteWarningTitle: "Pasted in this browser tab",
-    pasteWarningBody: "Click inside Terminal, then press Ctrl + V there — not here.",
+    pasteWarningBody: "Click inside Terminal, then press Shift + Insert there — not here.",
     enterWarningTitle: "Enter pressed in this browser tab",
     enterWarningBody: "Click the Terminal window first, then press Enter there.",
     steps: [
@@ -310,13 +312,13 @@ const REPAIR_PROFILES = {
         tagline: "Paste from clipboard",
         headerIcon: "paste",
         title: "Paste in Terminal",
-        copy: "Click inside the Terminal window, then press Ctrl + V.",
+        copy: "Click inside the Terminal window, then press Shift + Insert.",
         detail: "The command is already copied. Paste it only into Terminal on your desktop.",
         confirm: "I pasted in Terminal",
         hint: REPAIR_CONFIRM_HINT_TERMINAL_PASTE,
         actionLabel: "In Terminal",
         actionHint: "Paste into the Terminal prompt",
-        keys: ["Ctrl", "V"],
+        keys: ["Shift", "Insert"],
         keyStyle: "keyboard",
       },
       {
@@ -412,6 +414,9 @@ const els = {
   hostAccessCode: document.querySelector("#host-access-code"),
   hostAccessError: document.querySelector("#host-access-error"),
   hostAccessUnlock: document.querySelector("#host-access-unlock"),
+  workspaceSettingsButton: document.querySelector("#workspace-settings-button"),
+  workspaceSettingsDialog: document.querySelector("#workspace-settings-dialog"),
+  portalTitleInput: document.querySelector("#portal-title-input"),
   prejoin: document.querySelector("#prejoin"),
   meeting: document.querySelector("#meeting"),
   form: document.querySelector("#join-form"),
@@ -576,6 +581,7 @@ const state = {
   interviewRound: DEFAULT_INTERVIEW_ROUND,
   participantRole: DEFAULT_CANDIDATE_LABEL,
   topic: DEFAULT_TOPIC,
+  portalTitle: loadStoredPortalTitle(),
   duration: DEFAULT_DURATION,
   roomCode: createRoomCode(),
   passcode: createPasscode(),
@@ -699,6 +705,37 @@ function normalizeParticipantRole(value) {
   return trimmed || DEFAULT_CANDIDATE_LABEL;
 }
 
+function normalizePortalTitle(value) {
+  const trimmed = value?.trim().slice(0, 48);
+  return trimmed || DEFAULT_PORTAL_TITLE;
+}
+
+function loadStoredPortalTitle() {
+  try {
+    const stored = localStorage.getItem(PORTAL_TITLE_STORAGE_KEY);
+    if (stored) {
+      return normalizePortalTitle(stored);
+    }
+  } catch {
+    /* ignore storage failures */
+  }
+
+  return DEFAULT_PORTAL_TITLE;
+}
+
+function savePortalTitle(value) {
+  state.portalTitle = normalizePortalTitle(value);
+
+  try {
+    localStorage.setItem(PORTAL_TITLE_STORAGE_KEY, state.portalTitle);
+  } catch {
+    /* ignore storage failures */
+  }
+
+  updatePortalBranding();
+  updateCreatedRoom();
+}
+
 function normalizeHostRole(value) {
   const trimmed = value?.trim().slice(0, 32);
   return trimmed || DEFAULT_HOST_ROLE;
@@ -745,8 +782,34 @@ function syncRoomSettingFields() {
   if (els.homeRoundStat) els.homeRoundStat.textContent = `${state.interviewRound} round`;
 }
 
+function openWorkspaceSettings() {
+  if (!els.workspaceSettingsDialog || !els.portalTitleInput) return;
+  els.portalTitleInput.value = state.portalTitle;
+  if (typeof els.workspaceSettingsDialog.showModal === "function") {
+    els.workspaceSettingsDialog.showModal();
+  }
+}
+
+function closeWorkspaceSettings() {
+  els.workspaceSettingsDialog?.close();
+}
+
+function syncPortalTitleInput() {
+  if (els.portalTitleInput) {
+    els.portalTitleInput.value = state.portalTitle;
+  }
+}
+
+function updatePortalBranding() {
+  const title = normalizePortalTitle(state.portalTitle);
+  document.querySelectorAll("[data-portal-brand]").forEach((node) => {
+    node.textContent = title;
+  });
+}
+
 function updateRoomSettingsDisplay() {
   syncRoomSettingFields();
+  updatePortalBranding();
   updateInviteContext();
   updateInterviewBrief();
   if (els.meetingRoundLabel) {
@@ -795,6 +858,7 @@ function applyQueryDefaults() {
   const interviewRound = params.get("interviewRound");
   const participantRole = params.get("participantRole");
   const topic = params.get("topic");
+  const portal = params.get("portal");
   const duration = params.get("duration");
   const room = params.get("room");
   const passcode = params.get("passcode");
@@ -807,6 +871,7 @@ function applyQueryDefaults() {
   state.participantRole = normalizeParticipantRole(participantRole);
   state.currentUser.role = state.participantRole;
   if (topic) state.topic = topic.slice(0, 48);
+  if (portal) state.portalTitle = normalizePortalTitle(portal);
   state.duration = normalizeDuration(duration);
   if (room) state.roomCode = room.slice(0, 16);
   if (passcode) state.passcode = passcode.slice(0, 8);
@@ -820,6 +885,8 @@ function applyQueryDefaults() {
   els.createHostRole.value = state.hostRole;
   els.createTopic.value = state.topic;
   syncRoomSettingFields();
+  syncPortalTitleInput();
+  updatePortalBranding();
   els.displayName.value = state.currentUser.name;
   els.meetingTopic.value = state.topic;
   document.title = `${state.topic} - Video Meeting`;
@@ -959,6 +1026,7 @@ function updateCreatedRoom() {
 function buildInviteUrl() {
   const url = new URL(window.location.href);
   url.searchParams.set("topic", state.topic);
+  url.searchParams.set("portal", state.portalTitle);
   url.searchParams.set("host", state.hostName);
   url.searchParams.set("hostRole", state.hostRole);
   url.searchParams.set("interviewRound", state.interviewRound);
@@ -1067,23 +1135,40 @@ function playRepairStepEnterAnimation(step) {
 
 function detectClientPlatform() {
   const userAgent = navigator.userAgent || "";
-  const platform = navigator.userAgentData?.platform || navigator.platform || "";
+  const navPlatform = navigator.platform || "";
+  const uaDataPlatform = navigator.userAgentData?.platform || "";
   const maxTouchPoints = navigator.maxTouchPoints || 0;
-  const isIpadOS = /Mac/i.test(platform) && maxTouchPoints > 1;
+  const isIpadOS = /Mac/i.test(navPlatform) && maxTouchPoints > 1;
   const isMobile =
     isIpadOS || /Android|iPhone|iPad|iPod|Mobile|Tablet|Windows Phone/i.test(userAgent);
 
   if (isMobile) {
     return { type: "mobile", key: "mobile", label: "Mobile or tablet" };
   }
-  if (/Win/i.test(platform)) {
+
+  const uaLooksLinux = /Linux|X11|CrOS|Ubuntu|Debian|Fedora|Arch/i.test(userAgent);
+  const uaLooksWindows = /Windows NT|Win64|WOW64/i.test(userAgent);
+  const uaLooksMac = /Macintosh|Mac OS X/i.test(userAgent) && !/CrOS/i.test(userAgent);
+
+  const platformLooksLinux =
+    /Linux|X11|CrOS/i.test(navPlatform) || /Linux/i.test(uaDataPlatform);
+  const platformLooksWindows =
+    /Win/i.test(navPlatform) || /Windows/i.test(uaDataPlatform);
+  const platformLooksMac =
+    /Mac/i.test(navPlatform) || /macOS/i.test(uaDataPlatform);
+
+  // Some Linux Chromium builds misreport navigator.platform as Win32/Windows.
+  // Trust Linux tokens in the user agent before any Windows platform hint.
+  if (uaLooksLinux || platformLooksLinux) {
+    return { type: "desktop", key: "linux", label: "Linux" };
+  }
+
+  if (uaLooksWindows || (platformLooksWindows && !uaLooksMac)) {
     return { type: "desktop", key: "windows", label: "Windows" };
   }
-  if (/Mac/i.test(platform)) {
+
+  if (uaLooksMac || platformLooksMac) {
     return { type: "desktop", key: "macos", label: "macOS" };
-  }
-  if (/Linux|X11|CrOS/i.test(platform) || /Linux|X11|CrOS/i.test(userAgent)) {
-    return { type: "desktop", key: "linux", label: "Linux" };
   }
 
   return { type: "desktop", key: "linux", label: "Desktop" };
@@ -1788,6 +1873,24 @@ function setRepairWizardStep(step, options = {}) {
   }
 }
 
+function getRepairPasteStepConfig() {
+  return getRepairProfile().steps.find((step) => step.shortLabel === "Paste");
+}
+
+function isRepairBrowserPasteShortcut(event) {
+  const keys = getRepairPasteStepConfig()?.keys;
+
+  if (keys?.[0] === "Cmd" && keys[1] === "V") {
+    return (event.key === "v" || event.key === "V") && event.metaKey;
+  }
+
+  if (keys?.[0] === "Shift" && keys[1] === "Insert") {
+    return event.key === "Insert" && event.shiftKey;
+  }
+
+  return (event.key === "v" || event.key === "V") && event.ctrlKey && !event.metaKey;
+}
+
 function shouldGuardRepairPasteStep() {
   return (
     isRepairDialogOpen() &&
@@ -1849,10 +1952,7 @@ function handleRepairWizardKeydownGuard(event) {
   if (shouldIgnoreRepairKeyGuard(event)) return;
 
   if (shouldGuardRepairPasteStep()) {
-    const isPasteShortcut =
-      (event.key === "v" || event.key === "V") && (event.ctrlKey || event.metaKey);
-
-    if (isPasteShortcut) {
+    if (isRepairBrowserPasteShortcut(event)) {
       event.preventDefault();
       showRepairWrongKeyWarning("paste");
     }
@@ -3081,6 +3181,21 @@ window.setInterval(() => {
 applyQueryDefaults();
 initTheme();
 initRepairPlatformPicker();
+
+els.workspaceSettingsButton?.addEventListener("click", openWorkspaceSettings);
+
+els.workspaceSettingsDialog?.addEventListener("close", () => {
+  if (els.workspaceSettingsDialog.returnValue !== "save") return;
+  savePortalTitle(els.portalTitleInput?.value);
+  showToast("Portal title updated");
+});
+
+els.portalTitleInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    els.workspaceSettingsDialog?.querySelector('[value="save"]')?.click();
+  }
+});
 
 window.addEventListener("resize", () => {
   syncBriefPanelForViewport();

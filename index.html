@@ -58,13 +58,29 @@
             <div class="brand-pill brand-pill--home">
               <span class="brand-pill__mark" aria-hidden="true"></span>
               <span class="status-dot status-dot--live" aria-hidden="true"></span>
-              Aster Ridge Interview Portal
+              <span class="brand-pill__title" data-portal-brand>Aster Ridge Interview Portal</span>
             </div>
             <div class="home-header__actions">
               <div class="home-header__meta">
                 <span>Recruiting workspace</span>
                 <strong>Host console</strong>
               </div>
+              <button
+                class="workspace-settings"
+                type="button"
+                id="workspace-settings-button"
+                aria-haspopup="dialog"
+                aria-controls="workspace-settings-dialog"
+              >
+                <span class="workspace-settings__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path
+                      d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8.94 4a7.94 7.94 0 0 1-.16 1l2.03 1.58-2 3.46-2.39-.96a8.06 8.06 0 0 1-1.73 1l-.35 2.52H9.86l-.35-2.52a8.06 8.06 0 0 1-1.73-1l-2.39.96-2-3.46 2.03-1.58a7.94 7.94 0 0 1-.16-1 7.94 7.94 0 0 1 .16-1L2.66 6.42l2-3.46 2.39.96a8.06 8.06 0 0 1 1.73-1L9.86 1h4.28l.35 2.52a8.06 8.06 0 0 1 1.73 1l2.39-.96 2 3.46-2.03 1.58c.11.33.16.66.16 1Z"
+                    />
+                  </svg>
+                </span>
+                <span class="workspace-settings__label">Settings</span>
+              </button>
               <button
                 class="theme-toggle"
                 type="button"
@@ -178,7 +194,6 @@
                     <strong>Create room</strong>
                     <span>Generate candidate invitation</span>
                   </div>
-                  <small>Draft</small>
                 </div>
 
                 <div data-repair-platform-mount="home"></div>
@@ -286,14 +301,14 @@
               </div>
               <div class="readiness-list">
                 <span class="readiness-item">Invitation link generated</span>
-                <span class="readiness-item">Waiting room simulated</span>
-                <span class="readiness-item">Device check simulated</span>
+                <span class="readiness-item">Waiting room enabled</span>
+                <span class="readiness-item">Device check ready</span>
                 <span class="readiness-item">Camera failure handled</span>
                 <span class="readiness-item">Hiring panel room ready</span>
               </div>
               <div class="home-support">
-                <strong>Demo note</strong>
-                <span>Visual-only recruiting prototype for Netlify sharing.</span>
+                <strong>Candidate experience</strong>
+                <span>Invitation, lobby, device check, and panel room in one secure flow.</span>
               </div>
             </aside>
           </div>
@@ -306,7 +321,7 @@
             <div class="brand-pill brand-pill--lobby">
               <span class="brand-pill__mark" aria-hidden="true"></span>
               <span class="status-dot"></span>
-              Aster Ridge Interview Portal
+              <span class="brand-pill__title" data-portal-brand>Aster Ridge Interview Portal</span>
             </div>
             <div class="lobby-header__actions">
               <div class="lobby-header__meta" aria-label="Lobby status">
@@ -1027,6 +1042,33 @@
         </div>
       </section>
     </main>
+
+    <dialog class="workspace-settings-dialog" id="workspace-settings-dialog">
+      <form method="dialog" id="workspace-settings-form">
+        <div class="panel-header">
+          <strong>Workspace settings</strong>
+          <button class="icon-button" value="cancel" type="submit">Close</button>
+        </div>
+        <div class="workspace-settings-dialog__body">
+          <label for="portal-title-input">Portal title</label>
+          <input
+            id="portal-title-input"
+            name="portalTitle"
+            type="text"
+            maxlength="48"
+            placeholder="Aster Ridge Interview Portal"
+            aria-describedby="portal-title-input-help"
+          />
+          <small id="portal-title-input-help">
+            Shown in the interview header for candidates.
+          </small>
+        </div>
+        <div class="workspace-settings-dialog__actions">
+          <button class="ghost-button" value="cancel" type="submit">Cancel</button>
+          <button class="primary-button" value="save" type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog class="invite-dialog" id="invite-dialog">
       <form method="dialog">

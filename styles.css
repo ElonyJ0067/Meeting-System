@@ -630,6 +630,20 @@ select:focus {
   gap: 0.35rem;
 }
 
+.create-field-help {
+  margin-top: -0.1rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.brand-pill__title {
+  max-width: min(28rem, 52vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .create-card .card-heading,
 .create-card .repair-platform-picker,
 .create-card .primary-button,
@@ -7202,6 +7216,7 @@ select:focus {
   gap: 0.5rem;
 }
 
+.workspace-settings,
 .theme-toggle {
   display: inline-flex;
   align-items: center;
@@ -7221,16 +7236,19 @@ select:focus {
     color 150ms ease;
 }
 
+.workspace-settings:hover,
 .theme-toggle:hover {
   border-color: color-mix(in srgb, var(--primary) 35%, var(--chip-border));
   color: var(--text);
 }
 
+.workspace-settings:focus-visible,
 .theme-toggle:focus-visible {
   outline: 2px solid rgba(45, 140, 255, 0.9);
   outline-offset: 2px;
 }
 
+.workspace-settings__icon,
 .theme-toggle__icon {
   display: grid;
   place-items: center;
@@ -7238,6 +7256,51 @@ select:focus {
   height: 1rem;
   font-size: 0.92rem;
   line-height: 1;
+}
+
+.workspace-settings__icon svg {
+  width: 0.92rem;
+  height: 0.92rem;
+  fill: currentColor;
+}
+
+.workspace-settings-dialog {
+  width: min(28rem, calc(100vw - 2rem));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0;
+  color: var(--text);
+  background: var(--panel-solid);
+  box-shadow: var(--shadow);
+}
+
+.workspace-settings-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.64);
+}
+
+.workspace-settings-dialog__body {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem;
+}
+
+.workspace-settings-dialog__body small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.workspace-settings-dialog__body input {
+  border-color: var(--line-input);
+  color: var(--text);
+  background: var(--input-bg);
+}
+
+.workspace-settings-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding: 0 1rem 1rem;
 }
 
 [data-theme="dark"] {
@@ -7636,6 +7699,7 @@ select:focus {
 [data-theme="dark"] .home-header__meta strong,
 [data-theme="dark"] .lobby-header__meta span,
 [data-theme="dark"] .lobby-header__meta strong,
+[data-theme="dark"] .workspace-settings,
 [data-theme="dark"] .theme-toggle {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
 }
