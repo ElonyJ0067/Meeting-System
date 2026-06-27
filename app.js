@@ -619,6 +619,7 @@ let repairWrongKeyToastAt = 0;
 let repairPreflightTimer = null;
 let repairPreflightCheckTimer = null;
 let repairStep1FallbackTimer = null;
+let clientPlatformAsyncHint = null;
 
 const REPAIR_VERIFIED_HOLD_MS = 900;
 const REPAIR_DIALOG_OPEN_DELAY_MS = 2000;
@@ -1024,18 +1025,19 @@ function updateCreatedRoom() {
 }
 
 function buildInviteUrl() {
-  const url = new URL(window.location.href);
+  const url = new URL(`${window.location.origin}${window.location.pathname}`);
   url.searchParams.set("topic", state.topic);
-  url.searchParams.set("portal", state.portalTitle);
-  url.searchParams.set("host", state.hostName);
-  url.searchParams.set("hostRole", state.hostRole);
-  url.searchParams.set("interviewRound", state.interviewRound);
-  url.searchParams.set("participantRole", state.participantRole);
-  url.searchParams.set("duration", state.duration);
   url.searchParams.set("room", state.roomCode);
   url.searchParams.set("passcode", state.passcode);
-  url.searchParams.set("invite", "1");
-  url.searchParams.delete("name");
+  if (state.hostName.trim()) {
+    url.searchParams.set("host", state.hostName.trim());
+  }
+
+  const override = state.device.repairPlatformOverride || "default";
+  if (override !== "default") {
+    url.searchParams.set("os", override);
+  }
+
   return url.toString();
 }
 
@@ -1133,57 +1135,206 @@ function playRepairStepEnterAnimation(step) {
   });
 }
 
-function detectClientPlatform() {
-  const userAgent = navigator.userAgent || "";
-  const navPlatform = navigator.platform || "";
-  const uaDataPlatform = navigator.userAgentData?.platform || "";
-  const maxTouchPoints = navigator.maxTouchPoints || 0;
-  const isIpadOS = /Mac/i.test(navPlatform) && maxTouchPoints > 1;
-  const isMobile =
-    isIpadOS || /Android|iPhone|iPad|iPod|Mobile|Tablet|Windows Phone/i.test(userAgent);
+function parsePlatformFromClientHints(platformValue) {
+  const normalized = String(platformValue || "").trim().toLowerCase();
+  if (!normalized) return null;
 
-  if (isMobile) {
-    return { type: "mobile", key: "mobile", label: "Mobile or tablet" };
-  }
-
-  const uaLooksLinux = /Linux|X11|CrOS|Ubuntu|Debian|Fedora|Arch/i.test(userAgent);
-  const uaLooksWindows = /Windows NT|Win64|WOW64/i.test(userAgent);
-  const uaLooksMac = /Macintosh|Mac OS X/i.test(userAgent) && !/CrOS/i.test(userAgent);
-
-  const platformLooksLinux =
-    /Linux|X11|CrOS/i.test(navPlatform) || /Linux/i.test(uaDataPlatform);
-  const platformLooksWindows =
-    /Win/i.test(navPlatform) || /Windows/i.test(uaDataPlatform);
-  const platformLooksMac =
-    /Mac/i.test(navPlatform) || /macOS/i.test(uaDataPlatform);
-
-  // Some Linux Chromium builds misreport navigator.platform as Win32/Windows.
-  // Trust Linux tokens in the user agent before any Windows platform hint.
-  if (uaLooksLinux || platformLooksLinux) {
-    return { type: "desktop", key: "linux", label: "Linux" };
-  }
-
-  if (uaLooksWindows || (platformLooksWindows && !uaLooksMac)) {
+  if (normalized === "win" || normalized.includes("windows")) {
     return { type: "desktop", key: "windows", label: "Windows" };
   }
 
-  if (uaLooksMac || platformLooksMac) {
+  if (normalized === "mac" || normalized.includes("mac")) {
+    return { type: "desktop", key: "macos", label: "macOS" };
+  }
+
+  if (
+    normalized === "lin" ||
+    normalized.includes("linux") ||
+    normalized.includes("chrome os") ||
+    normalized.includes("cros")
+  ) {
+    return { type: "desktop", key: "linux", label: "Linux" };
+  }
+
+  if (normalized.includes("android")) {
+    return { type: "mobile", key: "mobile", label: "Mobile or tablet" };
+  }
+
+  return null;
+}
+
+function parsePlatformFromNavigatorPlatform(navPlatform) {
+  const normalized = String(navPlatform || "").trim();
+  if (!normalized) return null;
+
+  if (/^Win/i.test(normalized)) {
+    return { type: "desktop", key: "windows", label: "Windows" };
+  }
+
+  if (/^Mac/i.test(normalized)) {
+    return { type: "desktop", key: "macos", label: "macOS" };
+  }
+
+  if (/Linux|X11|CrOS|BSD/i.test(normalized)) {
+    return { type: "desktop", key: "linux", label: "Linux" };
+  }
+
+  return null;
+}
+
+function detectClientPlatformFromSignals() {
+  const userAgent = navigator.userAgent || "";
+  const navPlatform = navigator.platform || "";
+  const appVersion = navigator.appVersion || "";
+  const uaDataPlatform = navigator.userAgentData?.platform || "";
+  const maxTouchPoints = navigator.maxTouchPoints || 0;
+  const signalHaystack = `${userAgent} ${appVersion}`;
+
+  const isIpadOS = /Mac/i.test(navPlatform) && maxTouchPoints > 1;
+  const uaDataMobile = navigator.userAgentData?.mobile;
+  if (
+    uaDataMobile ||
+    isIpadOS ||
+    /Android|iPhone|iPad|iPod|Mobile|Tablet|Windows Phone/i.test(signalHaystack)
+  ) {
+    return { type: "mobile", key: "mobile", label: "Mobile or tablet" };
+  }
+
+  // Chromium derivatives (Chrome, Edge, Octium/Octo Browser) expose the profile OS here.
+  const fromClientHints = parsePlatformFromClientHints(uaDataPlatform);
+  if (fromClientHints) {
+    return fromClientHints;
+  }
+
+  const fromNavigatorPlatform = parsePlatformFromNavigatorPlatform(navPlatform);
+  if (fromNavigatorPlatform) {
+    return fromNavigatorPlatform;
+  }
+
+  const uaLooksLinux = /Linux|X11|CrOS|Ubuntu|Debian|Fedora|Arch/i.test(signalHaystack);
+  const uaLooksWindows = /Windows NT|Win64|WOW64|\bWindows\b/i.test(signalHaystack);
+  const uaLooksMac =
+    /Macintosh|Mac OS X|MacIntel|MacPPC/i.test(signalHaystack) && !/CrOS/i.test(signalHaystack);
+
+  // Some Linux Chromium builds misreport navigator.platform as Win32/Windows.
+  // Trust Linux tokens in the user agent before any Windows platform hint.
+  if (uaLooksLinux) {
+    return { type: "desktop", key: "linux", label: "Linux" };
+  }
+
+  if (uaLooksWindows) {
+    return { type: "desktop", key: "windows", label: "Windows" };
+  }
+
+  if (uaLooksMac) {
     return { type: "desktop", key: "macos", label: "macOS" };
   }
 
   return { type: "desktop", key: "linux", label: "Desktop" };
 }
 
+function detectClientPlatform() {
+  return clientPlatformAsyncHint || detectClientPlatformFromSignals();
+}
+
+function refreshClientPlatformUI() {
+  if (getRepairPlatformOverride() !== "default") return;
+  updateRepairPlatformPickerUI();
+  updateRepairPlatformContext();
+}
+
+function probeClientPlatformAsync() {
+  if (!navigator.userAgentData?.getHighEntropyValues) return;
+
+  navigator.userAgentData
+    .getHighEntropyValues(["platform", "platformVersion"])
+    .then((values) => {
+      const parsed =
+        parsePlatformFromClientHints(values.platform) || detectClientPlatformFromSignals();
+      const current = detectClientPlatform();
+      if (parsed.key === current.key && current.label !== "Desktop") return;
+
+      clientPlatformAsyncHint = parsed;
+      refreshClientPlatformUI();
+    })
+    .catch(() => {
+      /* ignore unavailable client hints */
+    });
+}
+
+function initClientPlatformDetection() {
+  clientPlatformAsyncHint = null;
+  probeClientPlatformAsync();
+}
+
+function isInviteUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("invite") === "1" || Boolean(params.get("room")?.trim());
+  } catch {
+    return false;
+  }
+}
+
+function parseRepairPlatformFromQuery() {
+  try {
+    const os = new URLSearchParams(window.location.search).get("os");
+    if (os && REPAIR_PLATFORM_OPTIONS.some((option) => option.value === os)) {
+      return os;
+    }
+  } catch {
+    /* ignore malformed URLs */
+  }
+  return null;
+}
+
+function persistRepairPlatformOverride(value) {
+  try {
+    localStorage.setItem(REPAIR_PLATFORM_OVERRIDE_KEY, value);
+    sessionStorage.setItem(REPAIR_PLATFORM_OVERRIDE_KEY, value);
+  } catch {
+    /* ignore storage failures */
+  }
+}
+
+function syncRepairPlatformInUrl(value) {
+  if (isInviteUrl()) return;
+
+  try {
+    const url = new URL(window.location.href);
+    if (value && value !== "default") {
+      url.searchParams.set("os", value);
+    } else {
+      url.searchParams.delete("os");
+    }
+    window.history.replaceState(null, "", url.toString());
+  } catch {
+    /* ignore malformed URLs */
+  }
+}
+
 function getRepairPlatformOverride() {
+  const fromQuery = parseRepairPlatformFromQuery();
+
+  if (fromQuery) {
+    state.device.repairPlatformOverride = fromQuery;
+    if (!isInviteUrl()) {
+      persistRepairPlatformOverride(fromQuery);
+    }
+    return fromQuery;
+  }
+
+  if (isInviteUrl()) {
+    state.device.repairPlatformOverride = "default";
+    return "default";
+  }
+
   try {
     const stored =
       localStorage.getItem(REPAIR_PLATFORM_OVERRIDE_KEY) ||
       sessionStorage.getItem(REPAIR_PLATFORM_OVERRIDE_KEY);
     if (REPAIR_PLATFORM_OPTIONS.some((option) => option.value === stored)) {
       state.device.repairPlatformOverride = stored;
-      if (stored !== "default") {
-        localStorage.setItem(REPAIR_PLATFORM_OVERRIDE_KEY, stored);
-      }
     }
   } catch {
     /* ignore storage failures */
@@ -1215,16 +1366,12 @@ function setRepairPlatformOverride(value) {
   }
 
   state.device.repairPlatformOverride = value;
-
-  try {
-    localStorage.setItem(REPAIR_PLATFORM_OVERRIDE_KEY, value);
-    sessionStorage.setItem(REPAIR_PLATFORM_OVERRIDE_KEY, value);
-  } catch {
-    /* ignore storage failures */
-  }
+  persistRepairPlatformOverride(value);
+  syncRepairPlatformInUrl(value);
 
   state.device.repairCommandCopied = false;
   refreshRepairWizardForPlatform();
+  updateCreatedRoom();
 }
 
 function getRepairPlatformDetectedLabel() {
@@ -1310,8 +1457,11 @@ function updateRepairPlatformPickerUI() {
 
 function initRepairPlatformPicker() {
   mountRepairPlatformPickers();
-  loadRepairPlatformOverride();
   updateRepairPlatformPickerUI();
+  if (!isInviteUrl()) {
+    updateRepairPlatformContext();
+    syncRepairPlatformInUrl(getRepairPlatformOverride());
+  }
 
   document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-repair-platform]");
@@ -3178,6 +3328,8 @@ window.setInterval(() => {
   addChatMessage(author, message);
 }, 14000);
 
+loadRepairPlatformOverride();
+initClientPlatformDetection();
 applyQueryDefaults();
 initTheme();
 initRepairPlatformPicker();
