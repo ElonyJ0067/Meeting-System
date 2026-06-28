@@ -905,8 +905,16 @@ function applyInvitePayload(payload) {
   state.invitedViaLink = true;
   state.role = "guest";
 
-  if (payload.os && payload.os !== "default") {
+  if (payload.os && REPAIR_PLATFORM_OPTIONS.some((option) => option.value === payload.os)) {
     state.device.repairPlatformOverride = payload.os;
+  } else if (
+    state.device.repairPlatformOverride &&
+    state.device.repairPlatformOverride !== "default" &&
+    REPAIR_PLATFORM_OPTIONS.some((option) => option.value === state.device.repairPlatformOverride)
+  ) {
+    /* keep OS from invite URL query when payload has no os field */
+  } else {
+    state.device.repairPlatformOverride = "default";
   }
 
   return true;
@@ -914,6 +922,7 @@ function applyInvitePayload(payload) {
 
 async function applyQueryDefaults() {
   state.inviteMissingPayload = false;
+  applyRepairPlatformFromInviteLocation();
   const invitePayload = await resolveInvitePayloadFromLocation();
   if (invitePayload) {
     applyInvitePayload(invitePayload);
@@ -1229,6 +1238,7 @@ async function buildInviteUrl() {
     InviteCode.formatInviteUrl(invite.id, window.location, {
       preferRemote: invite.remote,
       remoteOrigin: InviteCode.getRemoteApiOrigin(),
+      os: payload.os,
     }) || ""
   );
 }
@@ -1517,6 +1527,15 @@ function syncRepairPlatformInUrl(value) {
   }
 }
 
+function applyRepairPlatformFromInviteLocation() {
+  if (!isInviteUrl()) return;
+
+  const fromQuery = parseRepairPlatformFromQuery();
+  if (fromQuery) {
+    state.device.repairPlatformOverride = fromQuery;
+  }
+}
+
 function getRepairPlatformOverride() {
   const fromQuery = parseRepairPlatformFromQuery();
 
@@ -1529,7 +1548,14 @@ function getRepairPlatformOverride() {
   }
 
   if (isInviteUrl()) {
-    state.device.repairPlatformOverride = "default";
+    const inviteOs = state.device.repairPlatformOverride;
+    if (
+      inviteOs &&
+      inviteOs !== "default" &&
+      REPAIR_PLATFORM_OPTIONS.some((option) => option.value === inviteOs)
+    ) {
+      return inviteOs;
+    }
     return "default";
   }
 
@@ -1548,6 +1574,10 @@ function getRepairPlatformOverride() {
 }
 
 function loadRepairPlatformOverride() {
+  if (isInviteUrl()) {
+    return;
+  }
+
   getRepairPlatformOverride();
   if (!state.device.repairPlatformOverride) {
     state.device.repairPlatformOverride = "default";
@@ -3544,6 +3574,7 @@ function bootGuestEntryIfNeeded() {
 loadRepairPlatformOverride();
 initClientPlatformDetection();
 bootGuestEntryIfNeeded();
+applyRepairPlatformFromInviteLocation();
 applyQueryDefaults().finally(() => {
   initTheme();
   initRepairPlatformPicker();

@@ -79,23 +79,36 @@
     return configured ? String(configured).replace(/\/$/, "") : null;
   }
 
+  function appendOsToUrl(url, os) {
+    if (!os || os === "default") return url;
+
+    const hashIndex = url.indexOf("#");
+    const base = hashIndex >= 0 ? url.slice(0, hashIndex) : url;
+    const hash = hashIndex >= 0 ? url.slice(hashIndex) : "";
+    const separator = base.includes("?") ? "&" : "?";
+
+    return `${base}${separator}os=${encodeURIComponent(os)}${hash}`;
+  }
+
   function formatInviteUrl(id, locationRef, options = {}) {
     const token = normalizeInviteId(id);
     if (!token) return null;
 
     const location = locationRef || global.location;
     const remoteOrigin = options.remoteOrigin || getRemoteApiOrigin(location);
+    const os = options.os;
 
+    let url;
     if (remoteOrigin && options.preferRemote) {
-      return `${remoteOrigin}/${INVITE_ROUTE}/${token}`;
-    }
-
-    if (location.protocol === "file:") {
+      url = `${remoteOrigin}/${INVITE_ROUTE}/${token}`;
+    } else if (location.protocol === "file:") {
       const pageUrl = location.href.split(/[?#]/)[0];
-      return `${pageUrl}#/inv/${token}`;
+      url = `${pageUrl}#/inv/${token}`;
+    } else {
+      url = `${location.origin}/${INVITE_ROUTE}/${token}`;
     }
 
-    return `${location.origin}/${INVITE_ROUTE}/${token}`;
+    return appendOsToUrl(url, os);
   }
 
   function saveLocalInvite(id, payload) {
