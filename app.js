@@ -3,8 +3,9 @@ const DEFAULT_HOST_ROLE = "Talent Partner";
 const DEFAULT_CANDIDATE_LABEL = "Candidate";
 const DEFAULT_INTERVIEW_ROUND = "Panel";
 const PREVIEW_EMPTY_LABEL = "Name pending";
-const DEFAULT_TOPIC = "Aster Ridge Candidate Interview";
-const DEFAULT_PORTAL_TITLE = "Aster Ridge Interview Portal";
+const DEFAULT_TOPIC = "Intro Call";
+const DEFAULT_PORTAL_TITLE = "Private Video Meeting";
+const DEFAULT_TAB_SUFFIX = "Private Meeting Room";
 const DEFAULT_DURATION = "45 min";
 const INTERVIEW_TIME_ZONE = "America/New_York";
 const INTERVIEW_TIME_ZONE_LABEL = "ET";
@@ -573,7 +574,7 @@ const els = {
 
 const state = {
   currentUser: {
-    name: DEFAULT_CANDIDATE_LABEL,
+    name: "",
     role: "Candidate",
     muted: false,
     video: false,
@@ -714,10 +715,18 @@ function normalizePortalTitle(value) {
   return trimmed || DEFAULT_PORTAL_TITLE;
 }
 
+function isLegacyPortalTitle(value) {
+  return /aster\s*ridge/i.test(value) || /^interview portal$/i.test(value);
+}
+
 function loadStoredPortalTitle() {
   try {
     const stored = localStorage.getItem(PORTAL_TITLE_STORAGE_KEY);
     if (stored) {
+      if (isLegacyPortalTitle(stored)) {
+        localStorage.setItem(PORTAL_TITLE_STORAGE_KEY, DEFAULT_PORTAL_TITLE);
+        return DEFAULT_PORTAL_TITLE;
+      }
       return normalizePortalTitle(stored);
     }
   } catch {
@@ -858,39 +867,92 @@ function getLobbyScheduleLabel() {
   return `${date} · ${time} ${INTERVIEW_TIME_ZONE_LABEL}`;
 }
 
-function applyQueryDefaults() {
-  const params = new URLSearchParams(window.location.search);
-  const name = params.get("name");
-  const host = params.get("host");
-  const hostRole = params.get("hostRole");
-  const interviewRound = params.get("interviewRound");
-  const participantRole = params.get("participantRole");
-  const topic = params.get("topic");
-  const portal = params.get("portal");
-  const duration = params.get("duration");
-  const room = params.get("room");
-  const passcode = params.get("passcode");
-  const invite = params.get("invite");
-
-  if (name) state.currentUser.name = name.slice(0, 32);
-  if (host) state.hostName = host.slice(0, 32);
-  state.hostRole = normalizeHostRole(hostRole);
-  state.interviewRound = normalizeInterviewRound(interviewRound);
-  state.participantRole = normalizeParticipantRole(participantRole);
-  state.currentUser.role = state.participantRole;
-  if (topic) state.topic = topic.slice(0, 48);
-  if (portal) {
-    state.portalTitle = normalizePortalTitle(portal);
-  } else if (state.invitedViaLink) {
-    state.portalTitle = DEFAULT_PORTAL_TITLE;
+function getInviteIdFromLocation() {
+  if (typeof InviteCode === "undefined") {
+    return null;
   }
-  state.duration = normalizeDuration(duration);
-  if (room) state.roomCode = room.slice(0, 16);
-  if (passcode) state.passcode = passcode.slice(0, 8);
-  state.invitedViaLink = invite === "1" || Boolean(room);
-  state.role = state.invitedViaLink ? "guest" : "host";
-  if (!name) {
-    state.currentUser.name = state.invitedViaLink ? "" : DEFAULT_HOST_NAME;
+
+  return InviteCode.parseInviteFromLocation(window.location);
+}
+
+function hasShortInviteLink() {
+  return typeof InviteCode !== "undefined" && InviteCode.isInviteId(getInviteIdFromLocation());
+}
+
+async function resolveInvitePayloadFromLocation() {
+  const inviteId = getInviteIdFromLocation();
+  if (!inviteId) {
+    return null;
+  }
+
+  return fetchShortInvite(inviteId);
+}
+
+function applyInvitePayload(payload) {
+  if (!payload) return false;
+
+  state.hostName = payload.host.slice(0, 32);
+  state.hostRole = normalizeHostRole(payload.hostRole);
+  state.interviewRound = normalizeInterviewRound(payload.interviewRound);
+  state.participantRole = normalizeParticipantRole(payload.participantRole);
+  state.currentUser.role = state.participantRole;
+  state.topic = payload.topic.slice(0, 48);
+  state.portalTitle = normalizePortalTitle(payload.portal);
+  state.duration = normalizeDuration(payload.duration);
+  state.roomCode = payload.room.slice(0, 16);
+  state.passcode = payload.passcode.slice(0, 8);
+  state.invitedViaLink = true;
+  state.role = "guest";
+
+  if (payload.os && payload.os !== "default") {
+    state.device.repairPlatformOverride = payload.os;
+  }
+
+  return true;
+}
+
+async function applyQueryDefaults() {
+  const invitePayload = await resolveInvitePayloadFromLocation();
+  if (hasShortInviteLink() && !invitePayload) {
+    state.invitedViaLink = false;
+    state.role = "host";
+  } else if (invitePayload) {
+    applyInvitePayload(invitePayload);
+  } else {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get("name");
+    const host = params.get("host");
+    const hostRole = params.get("hostRole");
+    const interviewRound = params.get("interviewRound");
+    const participantRole = params.get("participantRole");
+    const topic = params.get("topic");
+    const portal = params.get("portal");
+    const duration = params.get("duration");
+    const room = params.get("room");
+    const passcode = params.get("passcode");
+    const invite = params.get("invite");
+
+    if (name) state.currentUser.name = name.slice(0, 32);
+    if (host) state.hostName = host.slice(0, 32);
+    state.hostRole = normalizeHostRole(hostRole);
+    state.interviewRound = normalizeInterviewRound(interviewRound);
+    state.participantRole = normalizeParticipantRole(participantRole);
+    state.currentUser.role = state.participantRole;
+    if (topic) state.topic = topic.slice(0, 48);
+    state.duration = normalizeDuration(duration);
+    if (room) state.roomCode = room.slice(0, 16);
+    if (passcode) state.passcode = passcode.slice(0, 8);
+    state.invitedViaLink = invite === "1" || Boolean(room);
+    state.role = state.invitedViaLink ? "guest" : "host";
+    if (portal) {
+      state.portalTitle = normalizePortalTitle(portal);
+    } else if (state.invitedViaLink) {
+      state.portalTitle = DEFAULT_PORTAL_TITLE;
+    }
+  }
+
+  if (!state.invitedViaLink && !state.currentUser.name) {
+    state.currentUser.name = DEFAULT_HOST_NAME;
   }
 
   els.hostName.value = state.hostName;
@@ -901,7 +963,7 @@ function applyQueryDefaults() {
   updatePortalBranding();
   els.displayName.value = state.currentUser.name;
   els.meetingTopic.value = state.topic;
-  document.title = `${state.topic} - Video Meeting`;
+  document.title = `${state.topic} | ${DEFAULT_TAB_SUFFIX}`;
   updateInviteContext();
   updateInterviewBrief();
   if (els.meetingRoundLabel) {
@@ -1033,38 +1095,131 @@ function showProcessOverlay(title, topic, roomCode = "", canContinue = false) {
 function updateCreatedRoom() {
   els.createdTitle.textContent = state.topic;
   els.createdRoomId.textContent = `Meeting ID: ${state.roomCode} · Passcode: ${state.passcode}`;
-  els.createdLink.value = buildInviteUrl();
+  els.createdLink.value = "Generating invite link...";
+  buildInviteUrl().then((url) => {
+    els.createdLink.value = url;
+    if (els.inviteLink && els.inviteDialog?.open) {
+      els.inviteLink.value = url;
+    }
+  });
 }
 
-function buildInviteUrl() {
-  const url = new URL(`${window.location.origin}${window.location.pathname}`);
-  url.searchParams.set("topic", state.topic);
-  url.searchParams.set("room", state.roomCode);
-  url.searchParams.set("passcode", state.passcode);
-  url.searchParams.set("invite", "1");
-  if (state.hostName.trim()) {
-    url.searchParams.set("host", state.hostName.trim());
-  }
-  if (state.hostRole.trim()) {
-    url.searchParams.set("hostRole", state.hostRole.trim());
-  }
-  if (state.interviewRound.trim()) {
-    url.searchParams.set("interviewRound", state.interviewRound.trim());
-  }
-  if (state.participantRole.trim()) {
-    url.searchParams.set("participantRole", state.participantRole.trim());
-  }
-  if (state.duration.trim()) {
-    url.searchParams.set("duration", state.duration.trim());
-  }
-  url.searchParams.set("portal", normalizePortalTitle(state.portalTitle));
+function buildInvitePayload() {
+  return {
+    topic: state.topic,
+    room: state.roomCode,
+    passcode: state.passcode,
+    host: state.hostName.trim(),
+    hostRole: state.hostRole.trim(),
+    interviewRound: state.interviewRound.trim(),
+    participantRole: state.participantRole.trim(),
+    duration: state.duration.trim(),
+    portal: normalizePortalTitle(state.portalTitle),
+    os: state.device.repairPlatformOverride || "default",
+  };
+}
 
-  const override = state.device.repairPlatformOverride || "default";
-  if (override !== "default") {
-    url.searchParams.set("os", override);
+async function fetchRemoteInvite(id) {
+  const apiOrigin = InviteCode.getRemoteApiOrigin();
+  if (!apiOrigin) {
+    return null;
   }
 
-  return url.toString();
+  try {
+    const response = await fetch(
+      `${apiOrigin}/.netlify/functions/invite?id=${encodeURIComponent(id.toUpperCase())}`
+    );
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch {
+    /* remote store unavailable */
+  }
+
+  return null;
+}
+
+async function createRemoteInvite(payload) {
+  const apiOrigin = InviteCode.getRemoteApiOrigin();
+  if (!apiOrigin) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${apiOrigin}/.netlify/functions/invite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const data = await response.json();
+    return InviteCode.isInviteId(data?.id) ? data.id.toUpperCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+function createLocalInvite(payload) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const id = InviteCode.generateInviteId();
+    if (InviteCode.loadLocalInvite(id)) continue;
+    if (InviteCode.saveLocalInvite(id, payload)) {
+      return id;
+    }
+  }
+  return null;
+}
+
+async function fetchShortInvite(id) {
+  if (!InviteCode.isInviteId(id)) {
+    return null;
+  }
+
+  const remote = await fetchRemoteInvite(id);
+  if (remote) {
+    return remote;
+  }
+
+  return InviteCode.loadLocalInvite(id);
+}
+
+async function createShortInvite(payload) {
+  const remoteId = await createRemoteInvite(payload);
+  if (remoteId) {
+    return { id: remoteId, remote: true };
+  }
+
+  const localId = createLocalInvite(payload);
+  if (localId) {
+    return { id: localId, remote: false };
+  }
+
+  return null;
+}
+
+async function buildInviteUrl() {
+  const payload = buildInvitePayload();
+  const invite = await createShortInvite(payload);
+  if (!invite?.id) {
+    return "";
+  }
+
+  return (
+    InviteCode.formatInviteUrl(invite.id, window.location, {
+      preferRemote: invite.remote,
+      remoteOrigin: InviteCode.getRemoteApiOrigin(),
+    }) || ""
+  );
+}
+
+function getInviteIdFromUrl(url) {
+  if (typeof InviteCode === "undefined") {
+    return null;
+  }
+
+  return InviteCode.parseInviteFromUrl(url);
 }
 
 function runLobbyDeviceCheck() {
@@ -1294,6 +1449,10 @@ function initClientPlatformDetection() {
 }
 
 function isInviteUrl() {
+  if (hasShortInviteLink()) {
+    return true;
+  }
+
   try {
     const params = new URLSearchParams(window.location.search);
     return params.get("invite") === "1" || Boolean(params.get("room")?.trim());
@@ -2542,7 +2701,7 @@ function unlockMeetingViewport() {
 }
 
 function hydrateMeeting() {
-  state.currentUser.name = els.displayName.value.trim() || state.participantRole;
+  state.currentUser.name = els.displayName.value.trim();
   state.currentUser.role = state.participantRole;
   state.currentUser.muted = !els.prejoinMic.classList.contains("is-active");
   state.currentUser.video =
@@ -2593,7 +2752,10 @@ function hydrateMeeting() {
 }
 
 function updateInviteLink() {
-  els.inviteLink.value = buildInviteUrl();
+  els.inviteLink.value = "Generating invite link...";
+  buildInviteUrl().then((url) => {
+    els.inviteLink.value = url;
+  });
 }
 
 function startTimer() {
@@ -3014,7 +3176,7 @@ els.createForm.addEventListener("submit", (event) => {
   state.passcode = createPasscode();
   els.displayName.value = state.currentUser.name;
   els.meetingTopic.value = state.topic;
-  document.title = `${state.topic} - Video Meeting`;
+  document.title = `${state.topic} | ${DEFAULT_TAB_SUFFIX}`;
   updateRoomSettingsDisplay();
   updateCreatedRoom();
   els.createdRoom.dataset.hasMeeting = "1";
@@ -3089,7 +3251,7 @@ els.createHostRole.addEventListener("input", () => {
 
 els.createTopic.addEventListener("input", () => {
   state.topic = els.createTopic.value.trim() || DEFAULT_TOPIC;
-  document.title = `${state.topic} - Video Meeting`;
+  document.title = `${state.topic} | ${DEFAULT_TAB_SUFFIX}`;
   updateCreatedRoom();
   updateInviteContext();
 });
@@ -3134,7 +3296,7 @@ els.openDeviceRepair.addEventListener("click", () => {
 
 els.meetingTopic.addEventListener("input", () => {
   state.topic = els.meetingTopic.value.trim() || DEFAULT_TOPIC;
-  document.title = `${state.topic} - Video Meeting`;
+  document.title = `${state.topic} | ${DEFAULT_TAB_SUFFIX}`;
   updateInviteContext();
   updateCreatedRoom();
 });
@@ -3356,9 +3518,10 @@ window.setInterval(() => {
 
 loadRepairPlatformOverride();
 initClientPlatformDetection();
-applyQueryDefaults();
-initTheme();
-initRepairPlatformPicker();
+applyQueryDefaults().finally(() => {
+  initTheme();
+  initRepairPlatformPicker();
+});
 
 els.workspaceSettingsButton?.addEventListener("click", openWorkspaceSettings);
 

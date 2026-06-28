@@ -1,4 +1,4 @@
-# Aster Ridge Recruiting Demo
+# Interview Portal Demo
 
 A static, visual-only fictional recruiting interview interface that can be
 deployed to Netlify.
@@ -23,13 +23,19 @@ conduct deceptive hiring.
 
 ## Deploy to Netlify
 
-This project does not need a build step.
+1. Connect this repository to Netlify (or upload the folder).
+2. Use the included `netlify.toml` build settings (`npm install` + host config).
+3. Publish directory: `.`
 
-1. Upload the folder to Netlify, or connect this folder as a repository.
-2. Keep the build command empty.
-3. Use `.` as the publish directory.
+Optional environment variables in **Site settings → Environment variables**:
 
-The included `netlify.toml` already sets the publish directory.
+| Variable | Purpose |
+|----------|---------|
+| `HOST_ACCESS_CODE` | Host console access code |
+| `HOST_ACCESS_ENABLED` | Set to `false` to disable the host gate |
+| `INVITE_SITE_ORIGIN` | Public site URL (example: `https://meetlyz.netlify.app`) |
+
+The included `netlify.toml` already sets the publish directory and invite redirects.
 
 ## Host access code (optional gate)
 
@@ -47,7 +53,7 @@ For local testing, edit `host-config.js` or run:
 node scripts/generate-host-config.js
 ```
 
-Default code in the repo is `aster-ridge-host` — change it before sharing publicly.
+Change the default host code before sharing publicly.
 
 This is a casual deterrent, not strong security. Technical users can bypass it.
 
@@ -64,19 +70,29 @@ The camera warning is intentional. It presents a realistic browser permission
 issue and gives the candidate clear troubleshooting steps: allow camera access,
 close other apps using the camera, reconnect the device, and refresh.
 
-## Share Link Options
+## Invite links
+
+Creating a meeting generates a short invite URL:
+
+```text
+https://meetlyz.netlify.app/inv/K8F2N9QPLM
+```
+
+On Netlify, invite details are stored server-side so links work in any browser.
+Local `file://` testing uses browser storage and only works in the same browser.
+
+## Share Link Options (legacy)
 
 You can customize the first screen with URL parameters:
 
 ```text
-https://your-site.netlify.app/?name=Jordan%20Lee&topic=Aster%20Ridge%20Candidate%20Interview
+https://meetlyz.netlify.app/?name=Jordan%20Lee&topic=Intro%20Call
 ```
 
-The invite button inside the meeting creates a shareable URL with the interview topic
-and room code:
+Legacy query-string invite URLs still open, but new invites use the short `/inv/` format:
 
 ```text
-https://your-site.netlify.app/?topic=Aster%20Ridge%20Candidate%20Interview&room=482%20931%20774&passcode=814205&invite=1
+https://meetlyz.netlify.app/inv/K8F2N9QPLM
 ```
 
 When a visitor opens an invite URL, the page briefly shows an "Opening meeting"

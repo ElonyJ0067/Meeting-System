@@ -1,6 +1,19 @@
 [build]
   publish = "."
-  command = "node scripts/generate-host-config.js"
+  command = "npm install && node scripts/generate-host-config.js"
+
+[functions]
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/inv/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/inv_*"
+  to = "/index.html"
+  status = 200
 
 [[headers]]
   for = "/*"

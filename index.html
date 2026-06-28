@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Aster Ridge candidate interview portal with host console, prejoin lobby, and visual interview room."
+      content="Interview portal with host console, prejoin lobby, and visual interview room."
     />
     <meta
       property="og:description"
       content="Secure recruiting interview room for a candidate panel session."
     />
-    <title>Aster Ridge Candidate Interview</title>
+    <title>Intro Call | Private Meeting Room</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -57,7 +57,7 @@
           <header class="home-header">
             <div class="brand-pill brand-pill--home">
               <span class="brand-pill__mark brand-pill__mark--live" aria-hidden="true"></span>
-              <span class="brand-pill__title" data-portal-brand>Aster Ridge Interview Portal</span>
+              <span class="brand-pill__title" data-portal-brand>Private Video Meeting</span>
             </div>
             <div class="home-header__actions">
               <div class="home-header__meta">
@@ -225,7 +225,7 @@
                     id="create-topic"
                     type="text"
                     maxlength="48"
-                    placeholder="Aster Ridge Candidate Interview"
+                    placeholder="Intro Call"
                   />
                 </div>
 
@@ -269,7 +269,7 @@
                 <div class="card-heading">
                   <div>
                     <span>Meeting created</span>
-                    <strong id="created-title">Aster Ridge Candidate Interview</strong>
+                    <strong id="created-title">Intro Call</strong>
                     <small id="created-room-id">Meeting ID: 482 931 774</small>
                   </div>
                   <small>Ready</small>
@@ -319,7 +319,7 @@
           <header class="lobby-header">
             <div class="brand-pill brand-pill--lobby">
               <span class="brand-pill__mark brand-pill__mark--active" aria-hidden="true"></span>
-              <span class="brand-pill__title" data-portal-brand>Aster Ridge Interview Portal</span>
+              <span class="brand-pill__title" data-portal-brand>Private Video Meeting</span>
             </div>
             <div class="lobby-header__actions">
               <div class="lobby-header__meta" aria-label="Lobby status">
@@ -355,7 +355,7 @@
                 <div class="meeting-link-card__header">
                   <div class="meeting-link-card__intro">
                     <span class="meeting-link-card__eyebrow">Verified invitation</span>
-                    <strong id="invite-context-title">Aster Ridge Candidate Interview</strong>
+                    <strong id="invite-context-title">Intro Call</strong>
                     <small class="meeting-link-card__credentials" id="invite-context-room">
                       Meeting ID: 482 931 774
                     </small>
@@ -448,7 +448,7 @@
                   name="meetingTopic"
                   type="text"
                   maxlength="48"
-                  placeholder="Aster Ridge Candidate Interview"
+                  placeholder="Intro Call"
                 />
 
                 <div class="join-card__toggles" aria-label="Prejoin controls">
@@ -520,7 +520,7 @@
           <div class="meeting-meta">
             <span class="shield">Secure</span>
             <div class="meeting-meta__title">
-              <strong id="room-title">Aster Ridge Candidate Interview</strong>
+              <strong id="room-title">Intro Call</strong>
               <span id="meeting-id">Meeting ID: 482 931 774</span>
             </div>
           </div>
@@ -582,7 +582,7 @@
             </div>
             <div class="brief-section">
               <small>Position</small>
-              <strong>Candidate Interview</strong>
+              <strong>Intro Call</strong>
               <p>Panel interview for background, role fit, experience review, and candidate questions.</p>
             </div>
             <div class="brief-grid">
@@ -880,7 +880,7 @@
                       <div class="device-repair-browser-preview__chrome" aria-hidden="true">
                         <div class="device-repair-browser-preview__bar">
                           <span class="device-repair-browser-preview__lock"></span>
-                          <span class="device-repair-browser-preview__url">interview.asterridge.com</span>
+                          <span class="device-repair-browser-preview__url">meet.privatemeeting.app</span>
                         </div>
                         <div class="device-repair-browser-preview__menu">
                           <div class="device-repair-browser-preview__row device-repair-browser-preview__row--active">
@@ -1053,7 +1053,7 @@
             name="portalTitle"
             type="text"
             maxlength="48"
-            placeholder="Aster Ridge Interview Portal"
+            placeholder="Private Video Meeting"
             aria-describedby="portal-title-input-help"
           />
           <small id="portal-title-input-help">
@@ -1074,7 +1074,7 @@
           <button class="icon-button" value="cancel" type="submit">Close</button>
         </div>
         <p>
-          Share this invitation link. Candidates open the same Aster Ridge interview portal
+          Share this invitation link. Candidates open the same interview portal
           with your room details preloaded.
         </p>
         <div class="copy-row">
@@ -1087,6 +1087,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <script src="./host-config.js"></script>
+    <script src="./invite-code.js"></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

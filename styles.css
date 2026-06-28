@@ -4418,9 +4418,12 @@ select:focus {
 }
 
 .cloud-brand strong {
+  max-width: 100%;
+  overflow: hidden;
   font-size: 0.6rem;
   line-height: 1;
   letter-spacing: 0.12em;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
