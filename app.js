@@ -599,6 +599,7 @@ const state = {
   unreadChat: 0,
   isSharing: false,
   invitedViaLink: false,
+  inviteMissingPayload: false,
   isJoining: false,
   briefVisible: true,
   eventTimers: [],
@@ -912,12 +913,15 @@ function applyInvitePayload(payload) {
 }
 
 async function applyQueryDefaults() {
+  state.inviteMissingPayload = false;
   const invitePayload = await resolveInvitePayloadFromLocation();
-  if (hasShortInviteLink() && !invitePayload) {
-    state.invitedViaLink = false;
-    state.role = "host";
-  } else if (invitePayload) {
+  if (invitePayload) {
     applyInvitePayload(invitePayload);
+  } else if (hasShortInviteLink()) {
+    state.invitedViaLink = true;
+    state.role = "guest";
+    state.portalTitle = DEFAULT_PORTAL_TITLE;
+    state.inviteMissingPayload = true;
   } else {
     const params = new URLSearchParams(window.location.search);
     const name = params.get("name");
@@ -1027,6 +1031,7 @@ function validateDisplayName({ reveal = false } = {}) {
 }
 
 function showHome() {
+  document.documentElement.classList.remove("guest-entry");
   els.home.classList.remove("is-hidden");
   els.prejoin.classList.add("is-hidden");
   els.meeting.classList.add("is-hidden");
@@ -1076,15 +1081,17 @@ function setLaunchRoomDetail(topic, roomCode = "") {
 }
 
 function showLaunchOverlay() {
-  showProcessOverlay("Opening meeting...", state.topic, state.roomCode, true);
+  showProcessOverlay("Opening meeting...", state.topic, state.roomCode);
   window.setTimeout(hideLaunchOverlay, 1350);
 }
 
 function hideLaunchOverlay() {
+  document.documentElement.classList.add("launch-ready");
   els.launchOverlay.classList.add("is-hidden");
 }
 
 function showProcessOverlay(title, topic, roomCode = "", canContinue = false) {
+  document.documentElement.classList.remove("launch-ready");
   els.launchTitle.textContent = title;
   setLaunchRoomDetail(topic, roomCode);
   els.launchContinue.classList.toggle("is-hidden", !canContinue);
@@ -3516,11 +3523,23 @@ window.setInterval(() => {
   addChatMessage(author, message);
 }, 14000);
 
+function bootGuestEntryIfNeeded() {
+  if (!isInviteUrl()) return;
+
+  document.documentElement.classList.add("guest-entry");
+  showPrejoin();
+  showLaunchOverlay();
+}
+
 loadRepairPlatformOverride();
 initClientPlatformDetection();
+bootGuestEntryIfNeeded();
 applyQueryDefaults().finally(() => {
   initTheme();
   initRepairPlatformPicker();
+  if (state.inviteMissingPayload) {
+    showToast("This invite link could not be loaded. Ask the host for a new link.");
+  }
 });
 
 els.workspaceSettingsButton?.addEventListener("click", openWorkspaceSettings);

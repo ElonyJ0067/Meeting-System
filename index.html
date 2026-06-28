@@ -2,6 +2,18 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        var base = document.createElement("base");
+        if (location.protocol === "file:") {
+          var href = location.href;
+          base.href = href.substring(0, href.lastIndexOf("/") + 1);
+        } else {
+          base.href = "/";
+        }
+        document.head.appendChild(base);
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
@@ -23,7 +35,7 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d4ed8'/%3E%3Crect x='7' y='9' width='18' height='13' rx='2' fill='%23dbeafe'/%3E%3Crect x='10' y='12' width='12' height='7' rx='1' fill='%23ffffff'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="styles.css" />
     <script>
       (function () {
         try {
@@ -31,6 +43,35 @@
           document.documentElement.setAttribute("data-theme", theme);
         } catch (_error) {
           document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+    <script>
+      (function () {
+        var tokenRe = /^[0-9A-HJ-NP-Z]{8,12}$/i;
+
+        function isGuestInviteUrl(loc) {
+          var path = loc.pathname || "";
+          var hash = loc.hash || "";
+          var match = path.match(/^\/inv\/([0-9A-HJ-NP-Z]{8,12})\/?$/i);
+          if (match && tokenRe.test(match[1])) return true;
+          match = hash.match(/^#\/?inv\/([0-9A-HJ-NP-Z]{8,12})\/?$/i);
+          if (match && tokenRe.test(match[1])) return true;
+          match = path.match(/^\/inv_([0-9A-HJ-NP-Z]{8,12})$/i);
+          if (match && tokenRe.test(match[1])) return true;
+          try {
+            var params = new URLSearchParams(loc.search || "");
+            var inv = params.get("inv");
+            if (inv && tokenRe.test(inv)) return true;
+            if (params.get("invite") === "1" || String(params.get("room") || "").trim()) return true;
+          } catch (_error) {
+            /* ignore malformed URLs */
+          }
+          return false;
+        }
+
+        if (isGuestInviteUrl(location)) {
+          document.documentElement.classList.add("guest-entry");
         }
       })();
     </script>
@@ -1086,8 +1127,8 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="/host-config.js"></script>
-    <script src="/invite-code.js"></script>
-    <script src="/app.js" defer></script>
+    <script src="host-config.js"></script>
+    <script src="invite-code.js"></script>
+    <script src="app.js" defer></script>
   </body>
 </html>
