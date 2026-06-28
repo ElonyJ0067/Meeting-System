@@ -168,7 +168,7 @@ html.guest-entry #home {
   display: none !important;
 }
 
-html.guest-entry #prejoin.is-hidden {
+html.guest-entry:not(.in-meeting) #prejoin.is-hidden {
   display: block !important;
 }
 

@@ -1031,7 +1031,7 @@ function validateDisplayName({ reveal = false } = {}) {
 }
 
 function showHome() {
-  document.documentElement.classList.remove("guest-entry");
+  document.documentElement.classList.remove("guest-entry", "in-meeting");
   els.home.classList.remove("is-hidden");
   els.prejoin.classList.add("is-hidden");
   els.meeting.classList.add("is-hidden");
@@ -1039,6 +1039,10 @@ function showHome() {
 }
 
 function showPrejoin() {
+  document.documentElement.classList.remove("in-meeting");
+  if (state.invitedViaLink || isInviteUrl()) {
+    document.documentElement.classList.add("guest-entry");
+  }
   els.home.classList.add("is-hidden");
   els.prejoin.classList.remove("is-hidden");
   els.meeting.classList.add("is-hidden");
@@ -1048,6 +1052,14 @@ function showPrejoin() {
   runLobbyDeviceCheck();
   resetSecurityCheck();
   hidePostJoinSecurity();
+}
+
+function enterMeetingView() {
+  document.documentElement.classList.remove("guest-entry");
+  document.documentElement.classList.add("in-meeting");
+  els.home.classList.add("is-hidden");
+  els.prejoin.classList.add("is-hidden");
+  els.meeting.classList.remove("is-hidden");
 }
 
 function updateInviteContext() {
@@ -3135,9 +3147,7 @@ function startJoinFlow() {
       window.clearInterval(stepTimer);
       hydrateMeeting();
       hideLaunchOverlay();
-      els.home.classList.add("is-hidden");
-      els.prejoin.classList.add("is-hidden");
-      els.meeting.classList.remove("is-hidden");
+      enterMeetingView();
       els.joinButton.textContent = "Join interview";
       state.isJoining = false;
       updateJoinAvailability();
